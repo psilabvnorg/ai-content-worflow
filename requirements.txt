@@ -1,0 +1,29 @@
+# Web Scraping
+beautifulsoup4==4.12.2
+requests==2.31.0
+lxml==4.9.3
+
+# NLP & Summarization
+transformers==4.36.0
+torch>=2.2.0
+sentencepiece==0.1.99
+
+# Text-to-Speech
+# Vietnamese TTS (NGHI-TTS - Piper-based)
+onnxruntime>=1.17.0
+# piper-phonemize (install separately if needed)
+# English TTS fallback
+edge-tts==6.1.9
+
+# Video Processing
+moviepy==1.0.3
+Pillow==10.1.0
+numpy==1.24.3
+opencv-python==4.8.1.78
+
+# Subtitle Generation
+pysrt==1.1.2
+
+# Utilities
+python-dotenv==1.0.0
+tqdm==4.66.1

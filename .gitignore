@@ -1,0 +1,106 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Output files (generated videos, audio, images)
+output/videos/*.mp4
+output/audio/*.mp3
+output/audio/*.wav
+output/images/*.jpg
+output/images/*.jpeg
+output/images/*.png
+output/temp/*.srt
+output/temp/*.txt
+
+# Keep output directories but ignore contents
+!output/videos/.gitkeep
+!output/audio/.gitkeep
+!output/images/.gitkeep
+!output/temp/.gitkeep
+
+# Models (large files)
+models/tts/*.onnx
+models/tts/*.onnx.json
+models/tts/*.bin
+models/tts/*.pt
+
+# Keep models directory
+!models/tts/.gitkeep
+
+# HuggingFace cache
+.cache/
+*.safetensors
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# FFmpeg temporary files
+*TEMP_MPY_*.mp4
+*TEMP_MPY_*.mp3
+
+# Large data files
+*.zip
+*.tar.gz
+*.rar

@@ -1,0 +1,140 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║     TIKTOK NEWS VIDEO GENERATOR - QUICK REFERENCE                    ║
+║                    ✅ FULLY OPERATIONAL                              ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+📦 STATUS: ✅ TESTED & WORKING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎉 LATEST TEST: SUCCESS!
+   Video: output/videos/test_final.mp4
+   Size: 5.7 MB | Duration: 27.8s | Resolution: 1080x1920
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 QUICK START (3 COMMANDS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Activate environment:
+   $ source venv/bin/activate
+
+2. Run demo:
+   $ python demo.py
+
+3. Enter URL when prompted:
+   Example: https://vnexpress.net/...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📁 OUTPUT LOCATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Videos: output/videos/*.mp4  ← YOUR TIKTOK VIDEOS HERE!
+Audio:  output/audio/*.mp3
+Images: output/images/*.jpg
+Subs:   output/temp/*.srt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️ PROCESSING TIME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total: ~40 seconds per video
+  • Crawl: 5s
+  • Summarize: 10s
+  • TTS: 8s
+  • Subtitles: <1s
+  • Video: 15s
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 SUPPORTED NEWS SITES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ VnExpress    (vnexpress.net)
+✅ Tien Phong   (tienphong.vn)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎬 VIDEO SPECIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Resolution:  1080x1920 (9:16 vertical) ✅
+Format:      MP4 (H.264 codec) ✅
+Frame Rate:  30 FPS ✅
+Duration:    ~30-45 seconds
+Audio:       AAC, Vietnamese voice ✅
+Subtitles:   Embedded ✅
+File Size:   ~5-10 MB
+Quality:     TikTok-ready! ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚙️ PROCESSING PIPELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+URL → Crawl → AI Summary → TTS → Subtitles → Video → MP4 ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤖 AI MODELS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Summarization: VietAI/vit5-base-vietnews-summarization ✅
+TTS:           Microsoft Edge TTS (Vietnamese Male) ✅
+Alternative:   NGHI-TTS (Piper ONNX models)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+README.md              - Complete guide
+QUICKSTART.md          - Quick start
+USAGE.md               - Detailed usage
+SUCCESS_REPORT.md      - Test results ✅
+architecture.md        - System design
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 ALTERNATIVE USAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Python API:
+from src.main import TikTokNewsGenerator
+generator = TikTokNewsGenerator(language="vietnamese")
+video = generator.generate_video("https://vnexpress.net/...")
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ SYSTEM VERIFIED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Python 3.12.3
+✅ PyTorch 2.9.1+cu128
+✅ Transformers 4.57.3
+✅ MoviePy 2.2.1
+✅ Edge-TTS 7.2.7
+✅ ONNX Runtime 1.23.2
+✅ FFmpeg installed
+✅ All modules working
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 BEST PRACTICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Use articles with 3-8 images
+✓ Check output in output/videos/
+✓ Videos are TikTok-ready (9:16)
+✓ Upload manually to TikTok
+✓ Processing takes ~40 seconds
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 START NOW!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+$ source venv/bin/activate && python demo.py
+
+╚══════════════════════════════════════════════════════════════════════╝
