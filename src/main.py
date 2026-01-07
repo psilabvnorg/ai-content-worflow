@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from crawler.news_crawler import NewsCrawler
 from processor.content_summarizer import ContentSummarizer
+from processor.text_corrector import TextCorrector
+from processor.text_normalizer import TextNormalizer
 from media.tts_generator import TTSGenerator
 from media.subtitle_generator import SubtitleGenerator
 from media.video_composer import VideoComposer
@@ -21,6 +23,8 @@ class TikTokNewsGenerator:
         print("Initializing TikTok News Generator...")
         self.crawler = NewsCrawler()
         self.summarizer = ContentSummarizer(language=language)
+        self.text_corrector = TextCorrector()  # Add text corrector
+        self.text_normalizer = TextNormalizer()  # Add text normalizer for TTS
         self.tts = TTSGenerator(language=language, model_path=tts_model_path)
         self.subtitle_gen = SubtitleGenerator()
         self.video_composer = VideoComposer()
@@ -48,17 +52,43 @@ class TikTokNewsGenerator:
         if len(article['images']) < 3:
             print("   ⚠ Warning: Less than 3 images found. Video may be short.")
         
-        # Step 2: Summarize content
+        # Step 2: Summarize content (body only, no intro/outro)
         print("\n📝 Step 2: Summarizing content...")
         script = self.summarizer.create_script(article)
-        print(f"   ✓ Script: {script['word_count']} words")
-        print(f"   Preview: {script['script'][:100]}...")
+        print(f"   ✓ Body: {script['word_count']} words")
+        print(f"   Preview: {script['body'][:100]}...")
         
-        # Step 3: Generate voice-over
+        # Step 2.5: Correct text spelling and diacritics (body only)
+        print("\n🔧 Step 2.5: Correcting text...")
+        script = self.text_corrector.correct_script(script)
+        print(f"   ✓ Corrected body: {script['word_count']} words")
+        print(f"   Preview: {script['body'][:100]}...")
+        
+        # Step 2.6: Add intro and outro AFTER correction
+        print("\n📌 Step 2.6: Adding intro and outro...")
+        if self.language == "vietnamese":
+            intro = f"Tin nóng: {script['title'][:50]}..."
+            outro = "Theo dõi và follow kênh Tiktok của PSI để cập nhật thêm tin tức!"
+        else:
+            intro = f"Breaking: {script['title'][:50]}..."
+            outro = "Follow for more updates!"
+        
+        # Build full script with intro + corrected body + outro
+        full_script = f"{intro} {script['body']} {outro}"
+        script['intro'] = intro
+        script['outro'] = outro
+        script['script'] = full_script
+        script['word_count'] = len(full_script.split())
+        
+        print(f"   ✓ Intro: {intro}")
+        print(f"   ✓ Outro: {outro}")
+        print(f"   ✓ Full script: {script['word_count']} words")
+        
+        # Step 3: Generate voice-over (with full script including intro/outro)
         print("\n🎤 Step 3: Generating voice-over...")
         audio_path = f"output/audio/{output_name}.mp3"
         os.makedirs("output/audio", exist_ok=True)
-        self.tts.generate(script['script'], audio_path)
+        self.tts.generate(full_script, audio_path)
         audio_duration = self.tts.get_audio_duration(audio_path)
         print(f"   ✓ Audio duration: {audio_duration:.1f} seconds")
         
@@ -66,18 +96,28 @@ class TikTokNewsGenerator:
         print("\n💬 Step 4: Generating subtitles...")
         subtitle_path = f"output/temp/{output_name}.srt"
         os.makedirs("output/temp", exist_ok=True)
-        self.subtitle_gen.generate_from_script(script['script'], audio_duration, subtitle_path)
+        # DO NOT pass text corrector - use Whisper output as-is
+        # The script is already corrected before TTS, so Whisper should transcribe it correctly
+        self.subtitle_gen.generate_from_audio(audio_path, subtitle_path)
         
         # Step 5: Compose video
         print("\n🎬 Step 5: Composing video...")
         video_path = f"output/videos/{output_name}.mp4"
         os.makedirs("output/videos", exist_ok=True)
+        
+        # Background music path
+        background_music = "assets/background_music.mp3"
+        if not os.path.exists(background_music):
+            print(f"   ⚠ Background music not found at {background_music}")
+            background_music = None
+        
         self.video_composer.create_video(
             images=article['images'],
             audio_path=audio_path,
             subtitle_path=subtitle_path,
             output_path=video_path,
-            audio_duration=audio_duration
+            audio_duration=audio_duration,
+            background_music_path=background_music
         )
         
         # Step 6: Prepare for publishing

@@ -67,6 +67,7 @@ models/tts/*.onnx
 models/tts/*.onnx.json
 models/tts/*.bin
 models/tts/*.pt
+models/
 
 # Keep models directory
 !models/tts/.gitkeep

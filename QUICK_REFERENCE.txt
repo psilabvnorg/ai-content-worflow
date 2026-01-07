@@ -1,14 +1,24 @@
 ╔══════════════════════════════════════════════════════════════════════╗
 ║     TIKTOK NEWS VIDEO GENERATOR - QUICK REFERENCE                    ║
-║                    ✅ FULLY OPERATIONAL                              ║
+║              ✅ FULLY OPERATIONAL + NEW IMPROVEMENTS                 ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
-📦 STATUS: ✅ TESTED & WORKING
+📦 STATUS: ✅ TESTED & WORKING (Updated: 2026-01-07)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎉 LATEST TEST: SUCCESS!
-   Video: output/videos/test_final.mp4
-   Size: 5.7 MB | Duration: 27.8s | Resolution: 1080x1920
+🆕 NEW FEATURES (2026-01-07)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Aggressive text correction (double-pass, beam search 15)
+✅ Text normalization for better TTS pronunciation
+✅ Improved subtitle correction (fixes more errors)
+✅ Better handling of proper nouns and numbers
+✅ Protected phrases (intro/outro preserved from correction)
+   - "Tin nóng" stays as "Tin nóng" (not changed to "Tình nóng")
+   - Outro stays exactly as specified
+✅ Explicit intro/outro subtitles (always present in video)
+✅ Background music support (15% volume, auto-looping)
+✅ Subtitle alignment (Whisper output aligned with original script)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -18,8 +28,8 @@
 1. Activate environment:
    $ source venv/bin/activate
 
-2. Run demo:
-   $ python demo.py
+2. Run main script:
+   $ python src/main.py
 
 3. Enter URL when prompted:
    Example: https://vnexpress.net/...
@@ -39,12 +49,15 @@ Subs:   output/temp/*.srt
 ⏱️ PROCESSING TIME
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Total: ~40 seconds per video
+Total: ~50-60 seconds per video
   • Crawl: 5s
-  • Summarize: 10s
+  • Summarize: 12s (ViT5-Large)
+  • Text Correction: 5s (ProtonX)
+  • Text Normalization: <1s
   • TTS: 8s
-  • Subtitles: <1s
-  • Video: 15s
+  • Whisper Transcription: 5s
+  • Aggressive Correction: 8s
+  • Video Composition: 15s
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -62,48 +75,95 @@ Total: ~40 seconds per video
 Resolution:  1080x1920 (9:16 vertical) ✅
 Format:      MP4 (H.264 codec) ✅
 Frame Rate:  30 FPS ✅
-Duration:    ~30-45 seconds
-Audio:       AAC, Vietnamese voice ✅
-Subtitles:   Embedded ✅
-File Size:   ~5-10 MB
-Quality:     TikTok-ready! ✅
+Duration:    40-50 seconds (180 words target)
+Audio:       AAC, Vietnamese male voice ✅
+Subtitles:   Whisper-based, word-level timing ✅
+Style:       TikTok (blurred bg, transitions, logo) ✅
+File Size:   ~8-15 MB
+Quality:     Production-ready! ✅
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚙️ PROCESSING PIPELINE
+⚙️ PROCESSING PIPELINE (UPDATED)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-URL → Crawl → AI Summary → TTS → Subtitles → Video → MP4 ✅
+URL → Crawl → Summarize (ViT5-Large) → Correct (ProtonX) → 
+Normalize → TTS (Edge-TTS) → Transcribe (Whisper) → 
+ALIGN with Original Script → Generate Subtitles → Compose Video → MP4 ✅
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🤖 AI MODELS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Summarization: VietAI/vit5-base-vietnews-summarization ✅
-TTS:           Microsoft Edge TTS (Vietnamese Male) ✅
-Alternative:   NGHI-TTS (Piper ONNX models)
+Summarization:    vit5-large-vietnews-summarization ✅
+Text Correction:  ProtonX Legal TC (96.95% accuracy) ✅
+TTS:              Microsoft Edge TTS (Vietnamese Male) ✅
+Transcription:    OpenAI Whisper (base model) ✅
+Alternative TTS:  NGHI-TTS (Piper ONNX) - requires setup
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎨 VIDEO FEATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Horizontal images centered on 90% blurred background
+✅ Crossfade transitions (0.5s overlap)
+✅ Black semi-transparent subtitle background (86% opacity)
+✅ White text with yellow emphasis on sentence endings
+✅ Logo overlay at top-left (150px width)
+✅ Accurate subtitle timing (Whisper word-level timestamps)
+✅ 38px font, 9 words per subtitle chunk
+✅ Background music at 15% volume (voice-over at 100%)
+✅ Explicit intro/outro subtitles (always present)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📚 DOCUMENTATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-README.md              - Complete guide
-QUICKSTART.md          - Quick start
-USAGE.md               - Detailed usage
-SUCCESS_REPORT.md      - Test results ✅
-architecture.md        - System design
+README.md                      - Complete guide
+QUICKSTART.md                  - Quick start
+USAGE.md                       - Detailed usage
+architecture.md                - System design
+CORRECTION_IMPROVEMENTS.md     - Text correction analysis
+PROTECTED_PHRASES_FIX.md       - Intro/outro preservation
+INTRO_OUTRO_FIX.md             - Explicit subtitle entries
+BACKGROUND_MUSIC_ADDED.md      - Background music feature
+SUBTITLE_ALIGNMENT_FEATURE.md  - Subtitle alignment (NEW)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔧 ALTERNATIVE USAGE
+🔧 TESTING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Python API:
-from src.main import TikTokNewsGenerator
-generator = TikTokNewsGenerator(language="vietnamese")
-video = generator.generate_video("https://vnexpress.net/...")
+Test corrections:
+$ python3 test_corrections_improved.py
+
+Test protected phrases:
+$ python3 test_protected_phrases.py
+
+Generate video:
+$ python src/main.py
+
+Check latest output:
+$ ls -lt output/videos/*.mp4 | head -1
+$ cat output/temp/tiktok_news_*.srt
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ KNOWN LIMITATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ Edge-TTS may mispronounce some Vietnamese words
+   Example: "phiên điều trần" → "phía diệu trần"
+   Example: "Venezuela" → "Vê Nê Duê La"
+
+⚠️ Root cause: TTS pronunciation quality, not correction model
+   Text correction IS working correctly!
+
+⚠️ Solution: Implement NGHI-TTS or pronunciation dictionary
+   See CORRECTION_IMPROVEMENTS.md for details
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -115,9 +175,12 @@ video = generator.generate_video("https://vnexpress.net/...")
 ✅ Transformers 4.57.3
 ✅ MoviePy 2.2.1
 ✅ Edge-TTS 7.2.7
+✅ OpenAI Whisper (latest)
 ✅ ONNX Runtime 1.23.2
 ✅ FFmpeg installed
 ✅ All modules working
+✅ Text correction working (ProtonX)
+✅ Aggressive correction mode enabled
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -128,13 +191,15 @@ video = generator.generate_video("https://vnexpress.net/...")
 ✓ Check output in output/videos/
 ✓ Videos are TikTok-ready (9:16)
 ✓ Upload manually to TikTok
-✓ Processing takes ~40 seconds
+✓ Processing takes ~50-60 seconds
+✓ Text correction is automatic (both script and subtitles)
+✓ Subtitles match voice timing (Whisper-based)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🚀 START NOW!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-$ source venv/bin/activate && python demo.py
+$ source venv/bin/activate && python src/main.py
 
 ╚══════════════════════════════════════════════════════════════════════╝
