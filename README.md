@@ -9,6 +9,8 @@ Automated pipeline to convert Vietnamese/English news articles into TikTok-ready
 - 🎤 **Text-to-Speech** with Vietnamese male voices (edge-tts)
 - 🎬 **Ken Burns Effect** for dynamic image transitions
 - 💬 **Auto-subtitles** synchronized with audio
+- 🎨 **Intro Screen** with gradient overlay, logo, and title
+- 📄 **Summary Export** in text and JSON formats
 - 📱 **TikTok-ready** 1080x1920 MP4 output
 
 ## Installation

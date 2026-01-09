@@ -1,0 +1,29 @@
+======================================================================
+ARTICLE SUMMARIZATION
+======================================================================
+
+Title: Chính phủ công bố chính sách mới về thuế thu nhập cá nhân
+Source: https://example.com/news/article
+Generated: 20260109_232000
+Word Count: 85 words
+Duration: 25.5 seconds
+
+======================================================================
+INTRO
+======================================================================
+Tin nóng: Chính phủ công bố chính sách mới về thuế thu nhập cá nhân
+
+======================================================================
+MAIN CONTENT (CORRECTED)
+======================================================================
+Chính phủ vừa công bố chính sách thuế mới nhằm giảm gánh nặng cho người lao động. Theo đó, mức giảm trừ gia cảnh sẽ được tăng từ 11 triệu lên 15 triệu đồng mỗi tháng. Chính sách này dự kiến có hiệu lực từ tháng 3 năm 2026 và sẽ giúp hàng triệu người lao động được hưởng lợi.
+
+======================================================================
+OUTRO
+======================================================================
+Theo dõi và follow kênh Tiktok của PSI để cập nhật thêm tin tức!
+
+======================================================================
+FULL SCRIPT (FOR TTS)
+======================================================================
+Tin nóng: Chính phủ công bố chính sách mới về thuế thu nhập cá nhân Chính phủ vừa công bố chính sách thuế mới nhằm giảm gánh nặng cho người lao động. Theo đó, mức giảm trừ gia cảnh sẽ được tăng từ 11 triệu lên 15 triệu đồng mỗi tháng. Chính sách này dự kiến có hiệu lực từ tháng 3 năm 2026 và sẽ giúp hàng triệu người lao động được hưởng lợi. Theo dõi và follow kênh Tiktok của PSI để cập nhật thêm tin tức!

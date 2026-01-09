@@ -288,6 +288,9 @@ output/
 │   └── tiktok_news_20260106_143022.mp4  ← Final video
 ├── audio/
 │   └── tiktok_news_20260106_143022.mp3  ← Voice-over
+├── summaries/                            ← NEW: Article summaries
+│   ├── tiktok_news_20260106_143022.txt  ← Human-readable
+│   └── tiktok_news_20260106_143022.json ← Machine-readable
 ├── images/
 │   ├── vnexpress_0_1234.jpg             ← Downloaded images
 │   ├── vnexpress_1_5678.jpg
@@ -295,6 +298,22 @@ output/
 └── temp/
     └── tiktok_news_20260106_143022.srt  ← Subtitles
 ```
+
+### Summary Files
+
+Each video generation now includes two summary files:
+
+**Text Format (.txt)**: Human-readable with sections
+- Title, source URL, timestamp
+- Intro, main content, outro
+- Full script used for TTS
+
+**JSON Format (.json)**: Machine-readable with metadata
+- All text content
+- File paths (video, audio, subtitles)
+- Duration, word count, image count
+
+See `SUMMARY_EXPORT.md` for detailed documentation.
 
 ## API Integration (Future)
 

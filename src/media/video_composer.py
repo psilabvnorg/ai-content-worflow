@@ -13,18 +13,25 @@ class VideoComposer:
     
     def create_video(self, images: list, audio_path: str, subtitle_path: str, 
                      output_path: str, audio_duration: float, 
-                     background_music_path: str = None) -> str:
+                     background_music_path: str = None, title: str = None) -> str:
         """Compose final TikTok video"""
         
         if not images:
             raise ValueError("No images provided")
         
         # Calculate timing
+        intro_duration = 3.0 if title else 0.0
         num_images = len(images)
         duration_per_image = audio_duration / num_images
         
         # Create video clips from images
         clips = []
+        
+        # Add intro clip if title is provided
+        if title:
+            # Use first article image for intro background
+            intro_clip = self._create_intro_clip(title, images[0], duration=intro_duration)
+            clips.append(intro_clip)
         
         for idx, img_path in enumerate(images):
             clip = self._create_ken_burns_clip(img_path, duration_per_image)
@@ -34,8 +41,14 @@ class VideoComposer:
         # Use padding=0 and method="compose" for smooth transitions
         video = concatenate_videoclips(clips, method="compose", padding=-0.5)  # 0.5s overlap for crossfade
         
-        # Add voice-over audio
+        # Add voice-over audio (delayed by intro duration)
         voice_audio = AudioFileClip(audio_path)
+        if intro_duration > 0:
+            # Add silence at the beginning for intro
+            from moviepy import AudioClip
+            silence = AudioClip(lambda t: 0, duration=intro_duration, fps=44100)
+            from moviepy import concatenate_audioclips
+            voice_audio = concatenate_audioclips([silence, voice_audio])
         
         # Add background music if provided
         if background_music_path and os.path.exists(background_music_path):
@@ -43,15 +56,17 @@ class VideoComposer:
                 print(f"Adding background music: {background_music_path}")
                 bg_music = AudioFileClip(background_music_path)
                 
+                total_duration = intro_duration + audio_duration
+                
                 # Loop background music if it's shorter than video
-                if bg_music.duration < audio_duration:
+                if bg_music.duration < total_duration:
                     # Calculate how many loops needed
-                    loops_needed = int(audio_duration / bg_music.duration) + 1
+                    loops_needed = int(total_duration / bg_music.duration) + 1
                     from moviepy import concatenate_audioclips
                     bg_music = concatenate_audioclips([bg_music] * loops_needed)
                 
                 # Trim to match video duration
-                bg_music = bg_music.subclipped(0, audio_duration)
+                bg_music = bg_music.subclipped(0, total_duration)
                 
                 # Reduce background music volume to 15% (so voice is clear)
                 bg_music = bg_music.with_effects([moviepy.audio.fx.MultiplyVolume(0.15)])
@@ -71,8 +86,8 @@ class VideoComposer:
         # Add logo overlay
         video = self._add_logo(video)
         
-        # Add subtitles
-        video = self._add_subtitles(video, subtitle_path)
+        # Add subtitles (offset by intro duration)
+        video = self._add_subtitles(video, subtitle_path, time_offset=intro_duration)
         
         # Export video
         video.write_videofile(
@@ -202,7 +217,7 @@ class VideoComposer:
         
         return video
     
-    def _add_subtitles(self, video: CompositeVideoClip, subtitle_path: str) -> CompositeVideoClip:
+    def _add_subtitles(self, video: CompositeVideoClip, subtitle_path: str, time_offset: float = 0.0) -> CompositeVideoClip:
         """Add subtitles to video with black background (TikTok style)"""
         try:
             import pysrt
@@ -212,8 +227,8 @@ class VideoComposer:
             
             subtitle_clips = []
             for sub in subs:
-                start = sub.start.ordinal / 1000
-                end = sub.end.ordinal / 1000
+                start = (sub.start.ordinal / 1000) + time_offset
+                end = (sub.end.ordinal / 1000) + time_offset
                 duration = end - start
                 
                 # Create subtitle image with PIL (more reliable than TextClip)
@@ -233,6 +248,119 @@ class VideoComposer:
             traceback.print_exc()
         
         return video
+    
+    def _create_intro_clip(self, title: str, article_image_path: str, duration: float = 3.0) -> VideoClip:
+        """Create intro clip with article image background, gradient overlay, title, and logo"""
+        from PIL import Image, ImageDraw, ImageFont
+        
+        # Load and resize article image to fit 9:16
+        article_img = Image.open(article_image_path).convert('RGB')
+        article_img = self._resize_image(article_img)
+        
+        # Load the gradient overlay PNG
+        gradient_path = 'assets/tiktok_background.png'
+        if not os.path.exists(gradient_path):
+            raise FileNotFoundError(f"Gradient overlay not found: {gradient_path}")
+        
+        gradient_overlay = Image.open(gradient_path).convert('RGBA')
+        
+        # Composite: article image + gradient overlay
+        # Convert article image to RGBA for compositing
+        article_img = article_img.convert('RGBA')
+        composite = Image.alpha_composite(article_img, gradient_overlay)
+        
+        # Add logo to top left
+        try:
+            logo_paths = [
+                'assets/logo.png',
+                'logo.png',
+            ]
+            
+            logo_path = None
+            for path in logo_paths:
+                if os.path.exists(path):
+                    logo_path = path
+                    break
+            
+            if logo_path:
+                logo_img = Image.open(logo_path).convert('RGBA')
+                
+                # Resize logo to reasonable size (120px width)
+                logo_width = 120
+                logo_ratio = logo_img.height / logo_img.width
+                logo_height = int(logo_width * logo_ratio)
+                logo_img = logo_img.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+                
+                # Paste logo at top left with 20px margin
+                composite.paste(logo_img, (20, 20), logo_img)
+                
+        except Exception as e:
+            print(f"Warning: Could not add logo to intro: {e}")
+        
+        # Add title text to the bottom half with left alignment
+        draw = ImageDraw.Draw(composite)
+        
+        # Load font (smaller size)
+        try:
+            font_paths = [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+                '/System/Library/Fonts/Helvetica.ttc',
+                'C:\\Windows\\Fonts\\arial.ttf',
+            ]
+            font = None
+            for font_path in font_paths:
+                if os.path.exists(font_path):
+                    font = ImageFont.truetype(font_path, 48)  # Reduced from 60 to 48
+                    break
+            if font is None:
+                font = ImageFont.load_default()
+        except:
+            font = ImageFont.load_default()
+        
+        # Word wrap title with left margin
+        left_margin = 60  # Left margin for text
+        right_margin = 60  # Right margin for text
+        max_width = self.width - left_margin - right_margin
+        words = title.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=font)
+            width = bbox[2] - bbox[0]
+            
+            if width <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Draw text in bottom half (left-aligned)
+        line_height = 60
+        total_text_height = len(lines) * line_height
+        start_y = self.height // 2 + (self.height // 2 - total_text_height) // 2
+        
+        for i, line in enumerate(lines):
+            x_position = left_margin  # Left-aligned
+            y_position = start_y + i * line_height
+            
+            # Draw text with white color
+            draw.text((x_position, y_position), line, font=font, fill='white')
+        
+        # Convert to RGB for video
+        composite = composite.convert('RGB')
+        
+        # Convert to numpy array and create clip
+        img_array = np.array(composite)
+        clip = ImageClip(img_array, duration=duration)
+        
+        return clip
     
     def _create_subtitle_image(self, text: str, max_width: int = 980) -> np.ndarray:
         """Create subtitle image with black background and white text (TikTok style)"""

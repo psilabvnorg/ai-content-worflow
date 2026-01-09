@@ -10,6 +10,7 @@ from crawler.news_crawler import NewsCrawler
 from processor.content_summarizer import ContentSummarizer
 from processor.text_corrector import TextCorrector
 from processor.text_normalizer import TextNormalizer
+from processor.subtitle_aligner import SubtitleAligner
 from media.tts_generator import TTSGenerator
 from media.subtitle_generator import SubtitleGenerator
 from media.video_composer import VideoComposer
@@ -25,6 +26,7 @@ class TikTokNewsGenerator:
         self.summarizer = ContentSummarizer(language=language)
         self.text_corrector = TextCorrector()  # Add text corrector
         self.text_normalizer = TextNormalizer()  # Add text normalizer for TTS
+        self.subtitle_aligner = SubtitleAligner()  # Add subtitle aligner
         self.tts = TTSGenerator(language=language, model_path=tts_model_path)
         self.subtitle_gen = SubtitleGenerator()
         self.video_composer = VideoComposer()
@@ -73,8 +75,16 @@ class TikTokNewsGenerator:
             intro = f"Breaking: {script['title'][:50]}..."
             outro = "Follow for more updates!"
         
-        # Build full script with intro + corrected body + outro
-        full_script = f"{intro} {script['body']} {outro}"
+        # Add break pacing for natural pauses
+        # SSML break tags work with edge-tts
+        # For other TTS, we use punctuation and spacing
+        intro_with_break = f"{intro}... "  # Triple dots + space for pause
+        outro_with_break = f" ... {outro}"  # Pause before outro (space before dots)
+        
+        # Build full script with breaks for natural pacing
+        # The pauses help separate intro, body, and outro
+        full_script = f"{intro_with_break}{script['body']}{outro_with_break}"
+        
         script['intro'] = intro
         script['outro'] = outro
         script['script'] = full_script
@@ -83,6 +93,63 @@ class TikTokNewsGenerator:
         print(f"   ✓ Intro: {intro}")
         print(f"   ✓ Outro: {outro}")
         print(f"   ✓ Full script: {script['word_count']} words")
+        print(f"   ✓ Added break pacing for natural pauses")
+        
+        # Step 2.7: Export summarization
+        print("\n📄 Step 2.7: Exporting summarization...")
+        summary_path = f"output/summaries/{output_name}.txt"
+        summary_json_path = f"output/summaries/{output_name}.json"
+        os.makedirs("output/summaries", exist_ok=True)
+        
+        # Export as text file
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            f.write("="*70 + "\n")
+            f.write("ARTICLE SUMMARIZATION\n")
+            f.write("="*70 + "\n\n")
+            
+            f.write(f"Title: {script['title']}\n")
+            f.write(f"Source: {news_url}\n")
+            f.write(f"Generated: {timestamp}\n")
+            f.write(f"Word Count: {script['word_count']} words\n")
+            f.write("\n" + "="*70 + "\n")
+            f.write("INTRO\n")
+            f.write("="*70 + "\n")
+            f.write(script['intro'] + "\n")
+            
+            f.write("\n" + "="*70 + "\n")
+            f.write("MAIN CONTENT (CORRECTED)\n")
+            f.write("="*70 + "\n")
+            f.write(script['body'] + "\n")
+            
+            f.write("\n" + "="*70 + "\n")
+            f.write("OUTRO\n")
+            f.write("="*70 + "\n")
+            f.write(script['outro'] + "\n")
+            
+            f.write("\n" + "="*70 + "\n")
+            f.write("FULL SCRIPT (FOR TTS)\n")
+            f.write("="*70 + "\n")
+            f.write(script['script'] + "\n")
+        
+        # Export as JSON file (without duration yet)
+        import json
+        summary_data = {
+            "title": script['title'],
+            "source_url": news_url,
+            "generated_at": timestamp,
+            "word_count": script['word_count'],
+            "intro": script['intro'],
+            "body": script['body'],
+            "outro": script['outro'],
+            "full_script": script['script'],
+            "images_count": len(article['images'])
+        }
+        
+        with open(summary_json_path, 'w', encoding='utf-8') as f:
+            json.dump(summary_data, f, ensure_ascii=False, indent=2)
+        
+        print(f"   ✓ Summary saved to: {summary_path}")
+        print(f"   ✓ JSON data saved to: {summary_json_path}")
         
         # Step 3: Generate voice-over (with full script including intro/outro)
         print("\n🎤 Step 3: Generating voice-over...")
@@ -99,6 +166,11 @@ class TikTokNewsGenerator:
         # DO NOT pass text corrector - use Whisper output as-is
         # The script is already corrected before TTS, so Whisper should transcribe it correctly
         self.subtitle_gen.generate_from_audio(audio_path, subtitle_path)
+        
+        # Step 4.5: Align subtitles with original script using Qwen3:4b
+        print("\n🔄 Step 4.5: Aligning subtitles with original script...")
+        print("   Using Qwen3:4b to match subtitle timing with corrected text...")
+        self.subtitle_aligner.align_subtitles(subtitle_path, full_script)
         
         # Step 5: Compose video
         print("\n🎬 Step 5: Composing video...")
@@ -117,18 +189,33 @@ class TikTokNewsGenerator:
             subtitle_path=subtitle_path,
             output_path=video_path,
             audio_duration=audio_duration,
-            background_music_path=background_music
+            background_music_path=background_music,
+            title=script['title']  # Pass title for intro
         )
         
-        # Step 6: Prepare for publishing
-        print("\n📤 Step 6: Preparing for upload...")
+        # Step 6: Update JSON with duration and file paths
+        print("\n📝 Step 6: Updating summary with duration and paths...")
+        summary_data['duration_seconds'] = round(audio_duration, 1)
+        summary_data['video_path'] = video_path
+        summary_data['audio_path'] = audio_path
+        summary_data['subtitle_path'] = subtitle_path
+        
+        with open(summary_json_path, 'w', encoding='utf-8') as f:
+            json.dump(summary_data, f, ensure_ascii=False, indent=2)
+        
+        print(f"   ✓ Updated JSON with duration: {audio_duration:.1f}s")
+        
+        # Step 7: Prepare for publishing
+        print("\n📤 Step 7: Preparing for upload...")
         metadata = self.publisher.prepare_metadata(article, script)
         upload_info = self.publisher.upload_video(video_path, metadata)
         
         print(f"\n{'='*60}")
         print(f"✅ VIDEO GENERATION COMPLETE!")
         print(f"{'='*60}")
-        print(f"Output: {video_path}")
+        print(f"Video:    {video_path}")
+        print(f"Summary:  {summary_path}")
+        print(f"JSON:     {summary_json_path}")
         print(f"Duration: {audio_duration:.1f} seconds")
         print(f"Resolution: 1080x1920 (9:16)")
         print(f"{'='*60}\n")
@@ -153,9 +240,15 @@ def main():
         print("Error: No URL provided")
         return
     
-    # Optional: Specify TTS model path for Vietnamese
-    # tts_model = "models/tts/deepman3909.onnx"
-    tts_model = None  # Will use edge-tts
+    # Use NGHI-TTS model (ngocngan3701 - Northern Vietnamese male voice)
+    tts_model = "models/voice_model/ngocngan3701.onnx"
+    
+    if not os.path.exists(tts_model):
+        print(f"Warning: TTS model not found at {tts_model}")
+        print("Will use edge-tts fallback")
+        tts_model = None
+    else:
+        print(f"Using NGHI-TTS model: {os.path.basename(tts_model)}")
     
     # Initialize generator
     generator = TikTokNewsGenerator(language="vietnamese", tts_model_path=tts_model)

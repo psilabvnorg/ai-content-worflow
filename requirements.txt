@@ -11,7 +11,7 @@ sentencepiece==0.1.99
 # Text-to-Speech
 # Vietnamese TTS (NGHI-TTS - Piper-based)
 onnxruntime>=1.17.0
-# piper-phonemize (install separately if needed)
+# espeak-ng required for phonemization (install with: sudo apt-get install espeak-ng)
 # English TTS fallback
 edge-tts==6.1.9
 
