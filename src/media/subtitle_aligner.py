@@ -1,4 +1,4 @@
-"""Subtitle Aligner - Aligns Whisper output with original corrected script"""
+"""Subtitle Aligner - Aligns Whisper output with original corrected script (supports word-level for karaoke)"""
 from difflib import SequenceMatcher
 import re
 
@@ -42,6 +42,65 @@ class SubtitleAligner:
         )
         
         return aligned_text
+    
+    def align_words_with_timing(self, whisper_words: list, original_script: dict) -> list:
+        """
+        Align individual words from Whisper with original script for karaoke mode
+        
+        Args:
+            whisper_words: List of {'word': str, 'start': float, 'end': float}
+            original_script: Dict with original corrected script
+        
+        Returns:
+            List of aligned words with timing preserved
+        """
+        if not original_script:
+            return whisper_words
+        
+        original_full = original_script.get('script', '')
+        original_words = original_full.split()
+        
+        aligned_words = []
+        original_idx = 0
+        
+        for w_info in whisper_words:
+            whisper_word = w_info['word'].strip()
+            
+            # Find best matching word in original script (within a window)
+            best_match = None
+            best_ratio = 0
+            best_idx = original_idx
+            
+            # Search within a window around current position
+            window_start = max(0, original_idx - 3)
+            window_end = min(len(original_words), original_idx + 5)
+            
+            for i in range(window_start, window_end):
+                ratio = self._word_similarity(whisper_word, original_words[i])
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_match = original_words[i]
+                    best_idx = i
+            
+            # Use original word if good match, otherwise keep Whisper word
+            if best_ratio >= 0.7 and best_match:
+                aligned_words.append({
+                    'word': best_match,
+                    'start': w_info['start'],
+                    'end': w_info['end']
+                })
+                original_idx = best_idx + 1
+            else:
+                aligned_words.append(w_info)
+                original_idx += 1
+        
+        return aligned_words
+    
+    def _word_similarity(self, word1: str, word2: str) -> float:
+        """Calculate similarity between two words"""
+        w1 = self._clean_text(word1)
+        w2 = self._clean_text(word2)
+        return SequenceMatcher(None, w1, w2).ratio()
     
     def _clean_text(self, text: str) -> str:
         """Clean text for comparison (lowercase, remove punctuation)"""

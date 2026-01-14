@@ -1,10 +1,10 @@
 from huggingface_hub import snapshot_download
 
 # The Model ID
-repo_id = "hynt/Zipformer-30M-RNNT-6000h"
+repo_id = "pnnbao-ump/VieNeu-TTS"
 
 # Your target local directory
-local_dir = "/home/x/Desktop/ai-content-tiktok/models/Zipformer-30M-RNNT-6000h"
+local_dir = "/home/x/Desktop/ai-content-tiktok/models/VieNeu-TTS"
 
 # Download the model
 print(f"Downloading {repo_id} to {local_dir}...")

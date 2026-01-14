@@ -1,0 +1,2 @@
+source venv/bin/activate
+python src/main.py --url "https://vnexpress.net/loat-co-phieu-ngan-hang-chung-khoan-tang-tran-5004736.html" --image-dir "output/images/vid_test"  --template "tiktok_psi" --intro-duration none

@@ -9,9 +9,9 @@ torch>=2.2.0
 sentencepiece==0.1.99
 
 # Text-to-Speech
-# Vietnamese TTS (NGHI-TTS - Piper-based)
-onnxruntime>=1.17.0
-# espeak-ng required for phonemization (install with: sudo apt-get install espeak-ng)
+# Vietnamese TTS (VieNeu-TTS - high quality)
+vieneu>=1.1.0
+soundfile>=0.12.0
 # English TTS fallback
 edge-tts==6.1.9
 
@@ -23,6 +23,9 @@ opencv-python==4.8.1.78
 
 # Subtitle Generation
 pysrt==1.1.2
+
+# PowerPoint Templates
+python-pptx==0.6.23
 
 # Utilities
 python-dotenv==1.0.0

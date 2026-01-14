@@ -1,144 +1,257 @@
-"""Content Summarizer Module - Summarizes news to 45-second script"""
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
-import os
+"""Content Summarizer Module - Summarizes news using Qwen3:4B via Ollama with chunked processing"""
+import requests
 import re
-from .text_preprocessor import TextPreprocessor
 
 class ContentSummarizer:
-    def __init__(self, language: str = "vietnamese", model_path: str = None):
+    def __init__(self, language: str = "vietnamese", ollama_url: str = "http://localhost:11434"):
         self.language = language
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.preprocessor = TextPreprocessor()
+        self.ollama_url = ollama_url
+        self.model = "qwen3:4b"
+        self.max_chunk_chars = 1500  # Keep chunks small for 4b model
         
-        if language == "vietnamese":
-            # Use local model if available, otherwise download
-            if model_path and os.path.exists(model_path):
-                model_name = model_path
-                print(f"Loading local model: {model_path}")
-            elif os.path.exists("models/vit5-large-vietnews-summarization"):
-                model_name = "models/vit5-large-vietnews-summarization"
-                print(f"Loading local LARGE model: {model_name}")
-            elif os.path.exists("models/vit5-base-vietnews-summarization"):
-                model_name = "models/vit5-base-vietnews-summarization"
-                print(f"Loading local BASE model: {model_name}")
-            else:
-                model_name = "VietAI/vit5-large-vietnews-summarization"
-                print(f"Downloading LARGE model: {model_name}")
-        else:
-            model_name = "facebook/bart-large-cnn"
-            print(f"Loading model: {model_name}")
-        
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name, 
-            legacy=False,
-            use_fast=True  # Use fast tokenizer for better handling
-        )
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(self.device)
-        
-        # Set pad token if not set
-        if self.tokenizer.pad_token is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-        
-        print(f"✓ Model loaded on {self.device}")
+        try:
+            response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models = [m['name'] for m in response.json().get('models', [])]
+                qwen3 = [n for n in models if 'qwen3' in n.lower()]
+                if qwen3:
+                    self.model = qwen3[0]
+                elif [n for n in models if 'qwen' in n.lower()]:
+                    self.model = [n for n in models if 'qwen' in n.lower()][0]
+                print(f"✓ Content Summarizer using Ollama model: {self.model}")
+        except Exception as e:
+            print(f"⚠ Cannot connect to Ollama: {e}")
     
-    def summarize(self, article: dict, target_words: int = 180) -> str:
-        """
-        Summarize article to ~180 words (45-50 seconds at 3.5-4 words/sec)
-        Optimized for ViT5 Vietnamese summarization model
-        """
-        # Combine title, description, and content
-        full_text = f"{article['title']}. {article['description']}. {article['content']}"
+    def _split_into_chunks(self, text: str) -> list:
+        """Split text into chunks at sentence boundaries"""
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        chunks = []
+        current_chunk = ""
         
-        # Preprocess text (convert dates, clean text)
-        full_text = self.preprocessor.preprocess(full_text)
-        
-        # For ViT5, add </s> at the end as per official documentation
-        if self.language == "vietnamese":
-            full_text = full_text + " </s>"
-        
-        # Tokenize
-        inputs = self.tokenizer(
-            full_text,
-            max_length=1024,
-            truncation=True,
-            return_tensors="pt",
-            padding=True
-        ).to(self.device)
-        
-        # Generate summary with optimized parameters
-        with torch.no_grad():
-            if self.language == "vietnamese":
-                # ViT5-specific parameters (based on official documentation)
-                summary_ids = self.model.generate(
-                    input_ids=inputs['input_ids'],
-                    attention_mask=inputs['attention_mask'],
-                    max_length=256,
-                    min_length=150,
-                    num_beams=4,  # Reduced from 5 for stability
-                    length_penalty=1.2,  # Adjusted for better output
-                    no_repeat_ngram_size=3,
-                    early_stopping=True,
-                    temperature=0.9,  # Add temperature for better quality
-                    do_sample=False,  # Deterministic output
-                    top_k=50,
-                    top_p=0.95
-                )
+        for sentence in sentences:
+            if len(current_chunk) + len(sentence) < self.max_chunk_chars:
+                current_chunk += " " + sentence if current_chunk else sentence
             else:
-                # BART parameters
-                summary_ids = self.model.generate(
-                    inputs['input_ids'],
-                    max_length=target_words + 30,
-                    min_length=target_words - 10,
-                    num_beams=4,
-                    length_penalty=2.0,
-                    early_stopping=True
-                )
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                current_chunk = sentence
         
-        summary = self.tokenizer.decode(
-            summary_ids[0], 
-            skip_special_tokens=True, 
-            clean_up_tokenization_spaces=True
-        )
+        if current_chunk:
+            chunks.append(current_chunk.strip())
         
-        # Post-process the summary to remove garbled text
-        summary = self.preprocessor.clean_text(summary)
+        return chunks if chunks else [text]
+    
+    def _summarize_chunk(self, chunk: str, chunk_num: int, total_chunks: int) -> str:
+        """Summarize a single chunk"""
+        prompt = f"""/no_think
+Tóm tắt đoạn văn sau (phần {chunk_num}/{total_chunks}) thành 2-3 câu ngắn gọn, giữ nguyên thông tin quan trọng:
+
+"{chunk}"
+
+Tóm tắt ngắn gọn:"""
+
+        try:
+            response = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "options": {"temperature": 0.2, "num_predict": 500}
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                summary = result.get('message', {}).get('content', '').strip()
+                summary = re.sub(r'<think>.*?</think>', '', summary, flags=re.DOTALL)
+                return summary.strip()
+        except Exception as e:
+            print(f"      ⚠ Chunk {chunk_num} error: {e}")
         
-        # Additional aggressive cleaning for model artifacts
-        # Remove standalone uppercase Vietnamese characters (common artifacts)
-        summary = re.sub(r'\s+[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]\s+', ' ', summary)
-        summary = re.sub(r'\.\s*[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]\s+', '. ', summary)
+        return ""
+    
+    def _combine_summaries(self, title: str, summaries: list, target_words: int = 350) -> str:
+        """Combine chunk summaries into final coherent summary"""
+        combined = " ".join(s for s in summaries if s)
         
-        # Remove sentences with too many garbled characters
-        sentences = summary.split('.')
-        clean_sentences = []
-        for sent in sentences:
-            sent = sent.strip()
-            if len(sent) == 0:
-                continue
-            # Count uppercase Vietnamese characters
-            uppercase_viet = len(re.findall(r'[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]', sent))
-            # If less than 15% uppercase, keep it
-            if uppercase_viet / len(sent) < 0.15:
-                clean_sentences.append(sent)
+        prompt = f"""/no_think
+Bạn là biên tập viên tin tức. Viết lại đoạn tóm tắt sau thành bài tin tức hoàn chỉnh, mạch lạc, khoảng {target_words} từ để đọc trên TikTok.
+
+Tiêu đề: {title}
+
+Nội dung tóm tắt:
+{combined}
+
+QUY TẮC:
+1. Viết thành đoạn văn liền mạch, hoàn chỉnh
+2. Số viết liền: 1.890 → 1890
+3. Ngày tháng viết chữ: 8/1 → mùng 8 tháng 1
+4. Kết thúc bằng câu hoàn chỉnh
+
+Bài tin tức hoàn chỉnh:"""
+
+        try:
+            response = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "options": {"temperature": 0.3, "num_predict": 2000}
+                },
+                timeout=120
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                final = result.get('message', {}).get('content', '').strip()
+                final = self._clean_summary(final)
+                if final and len(final.split()) >= 80:
+                    return final
+        except Exception as e:
+            print(f"   ⚠ Combine error: {e}")
         
-        summary = '. '.join(clean_sentences)
-        summary = summary.strip()
+        # Fallback: just clean and return combined
+        return self._clean_summary(combined)
+    
+    def summarize(self, article: dict, target_words: int = 350) -> str:
+        """Summarize article using chunked processing"""
         
-        # Final cleanup
-        summary = re.sub(r'\s+', ' ', summary)
-        summary = re.sub(r'\s+([.,;:!?])', r'\1', summary)
+        content = article.get('content', '')
+        description = article.get('description', '')
+        title = article.get('title', '')
         
-        return summary
+        full_text = f"{description} {content}".strip()
+        
+        # If text is short enough, process directly
+        if len(full_text) < self.max_chunk_chars:
+            return self._summarize_direct(article, target_words)
+        
+        # Split into chunks
+        chunks = self._split_into_chunks(full_text)
+        print(f"   Splitting into {len(chunks)} chunks for processing...")
+        
+        # Summarize each chunk
+        summaries = []
+        for i, chunk in enumerate(chunks, 1):
+            print(f"      Processing chunk {i}/{len(chunks)}...")
+            summary = self._summarize_chunk(chunk, i, len(chunks))
+            if summary:
+                summaries.append(summary)
+        
+        if not summaries:
+            return self._fallback_summarize(article)
+        
+        # Combine summaries into final text
+        print(f"   Combining {len(summaries)} summaries...")
+        final = self._combine_summaries(title, summaries, target_words)
+        
+        return final
+    
+    def _summarize_direct(self, article: dict, target_words: int) -> str:
+        """Direct summarization for short articles"""
+        full_text = f"Tiêu đề: {article['title']}\n\nNội dung: {article.get('description', '')} {article.get('content', '')}"
+        
+        prompt = f"""/no_think
+Tóm tắt bài báo sau thành khoảng {target_words} từ:
+
+{full_text}
+
+QUY TẮC: Số viết liền (1890 không phải 1.890), ngày viết chữ (mùng 8 tháng 1), câu hoàn chỉnh.
+
+Tóm tắt:"""
+
+        try:
+            response = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "options": {"temperature": 0.2, "num_predict": 2000}
+                },
+                timeout=120
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                summary = result.get('message', {}).get('content', '').strip()
+                return self._clean_summary(summary)
+        except Exception as e:
+            print(f"   ⚠ Direct summarize error: {e}")
+        
+        return self._fallback_summarize(article)
+    
+    def _clean_summary(self, text: str) -> str:
+        """Clean up the model response"""
+        # Remove thinking tags
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+        
+        # Remove common prefixes
+        prefixes = ["Đây là", "Tóm tắt:", "Đoạn văn", "Dưới đây", "Kết quả:", "Bài tin tức:"]
+        for prefix in prefixes:
+            if text.lower().startswith(prefix.lower()):
+                text = text[len(prefix):].strip()
+                if text.startswith(':'):
+                    text = text[1:].strip()
+        
+        # Remove quotes
+        if text.startswith('"') and text.endswith('"'):
+            text = text[1:-1]
+        
+        # Fix numbers with dots/spaces
+        while re.search(r'(\d+)\.\s*(\d{3})', text):
+            text = re.sub(r'(\d+)\.\s*(\d{3})', r'\1\2', text)
+        
+        # Fix comma without space
+        text = re.sub(r',([^\s])', r', \1', text)
+        
+        # Fix stuck words
+        text = re.sub(r'([a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ])([A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ])', r'\1 \2', text)
+        text = re.sub(r'([nN])([kK]hởi)', r'\1 \2', text)
+        text = re.sub(r'(án|ến|ông|ình|ất|ệt|ực)([a-zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]{2,})', r'\1 \2', text)
+        
+        # Convert dates
+        def convert_date_short(match):
+            day, month = int(match.group(1)), int(match.group(2))
+            return f"mùng {day} tháng {month}" if day <= 10 else f"ngày {day} tháng {month}"
+        
+        def convert_date_full(match):
+            day, month, year = int(match.group(1)), int(match.group(2)), match.group(3)
+            return f"mùng {day} tháng {month} năm {year}" if day <= 10 else f"ngày {day} tháng {month} năm {year}"
+        
+        text = re.sub(r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b', convert_date_full, text)
+        text = re.sub(r'\b(\d{1,2})/(\d{1,2})\b', convert_date_short, text)
+        
+        # Clean whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        # Ensure complete sentence
+        if text and text[-1] not in '.!?':
+            last = max(text.rfind('.'), text.rfind('!'), text.rfind('?'))
+            if last > len(text) * 0.7:
+                text = text[:last + 1]
+            else:
+                text = text + '.'
+        
+        return text
+    
+    def _fallback_summarize(self, article: dict) -> str:
+        """Simple fallback if Qwen fails"""
+        content = article.get('content', article.get('description', ''))
+        sentences = re.split(r'[.!?]', content)
+        summary = '. '.join(s.strip() for s in sentences[:12] if s.strip())
+        return self._clean_summary(summary + '.' if summary else article['title'])
     
     def create_script(self, article: dict) -> dict:
-        """Create TikTok script - returns ONLY the body summary (no intro/outro)"""
+        """Create TikTok script"""
+        print("   Using Qwen3:4B with chunked processing...")
         summary = self.summarize(article)
         
-        # Return ONLY the body summary
-        # Intro and outro will be added AFTER text correction
         return {
             'body': summary,
             'word_count': len(summary.split()),
-            'title': article['title']  # Keep title for later use
+            'title': article['title']
         }
