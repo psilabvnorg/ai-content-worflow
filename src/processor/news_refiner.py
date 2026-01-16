@@ -3,28 +3,17 @@ import requests
 import json
 import re
 
+OLLAMA_URL = "http://172.18.96.1:11434/api/generate"
+OLLAMA_MODEL = "qwen3-vl:4b"
+
 class NewsRefiner:
-    def __init__(self, ollama_url: str = "http://localhost:11434"):
+    def __init__(self, ollama_url: str = "http://172.18.96.1:11434", model: str = "qwen3-vl:4b"):
         self.ollama_url = ollama_url
-        self.model = "qwen3:4b"
+        self.model = model
         
-        # Verify model availability
-        try:
-            response = requests.get(f"{ollama_url}/api/tags", timeout=5)
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                model_names = [m['name'] for m in models]
-                
-                # Find qwen3 model first, then qwen
-                qwen3_models = [name for name in model_names if 'qwen3' in name.lower()]
-                qwen_models = [name for name in model_names if 'qwen' in name.lower()]
-                if qwen3_models:
-                    self.model = qwen3_models[0]
-                elif qwen_models:
-                    self.model = qwen_models[0]
-                print(f"✓ News Refiner using Ollama model: {self.model}")
-        except Exception as e:
-            print(f"⚠ Cannot connect to Ollama: {e}")
+        print(f"[LLM] Initializing News Refiner", flush=True)
+        print(f"[LLM] Using API: {OLLAMA_URL}", flush=True)
+        print(f"[LLM] Using model: {OLLAMA_MODEL}", flush=True)
     
     def refine_script(self, script_dict: dict) -> dict:
         """
@@ -34,10 +23,10 @@ class NewsRefiner:
         - Improve punctuation
         - Make wording more natural and professional (news-reporting style)
         """
-        print("Refining news content with Qwen3:4B...")
+        print("[LLM] Refining news content with Qwen3:4B...", flush=True)
         
         if 'body' not in script_dict or not script_dict['body']:
-            print("   ⚠ No body content to refine")
+            print("[LLM] ⚠ No body content to refine", flush=True)
             return script_dict
         
         original_body = script_dict['body']
@@ -48,18 +37,14 @@ class NewsRefiner:
         if refined_body:
             script_dict['body'] = refined_body
             script_dict['word_count'] = len(refined_body.split())
-            print(f"   ✓ Body refined ({len(original_body)} → {len(refined_body)} chars)")
-            print(f"   Before: {original_body[:80]}...")
-            print(f"   After:  {refined_body[:80]}...")
+            print(f"[LLM] ✓ Body refined ({len(original_body)} → {len(refined_body)} chars)", flush=True)
         
         return script_dict
     
     def _refine_text(self, text: str) -> str:
         """Use Qwen3:4B to refine the text"""
         
-        # Use a clearer prompt format with /no_think
-        prompt = f"""/no_think
-Nhiệm vụ: Chỉnh sửa văn bản tin tức sau đây.
+        prompt = f"""Nhiệm vụ: Chỉnh sửa văn bản tin tức sau đây.
 
 QUY TẮC BẮT BUỘC:
 1. Sửa lỗi ngữ pháp và chính tả
@@ -75,19 +60,15 @@ Văn bản gốc:
 Văn bản đã chỉnh sửa:"""
 
         try:
+            print(f"[LLM] Calling API to refine text", flush=True)
             response = requests.post(
-                f"{self.ollama_url}/api/chat",
+                OLLAMA_URL,
                 json={
-                    "model": self.model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": 0.2,  # Lower temperature for more consistent output
+                        "temperature": 0.2,
                         "num_predict": 2000
                     }
                 },
@@ -96,26 +77,23 @@ Văn bản đã chỉnh sửa:"""
             
             if response.status_code == 200:
                 result = response.json()
-                refined_text = result.get('message', {}).get('content', '').strip()
-                
-                # Clean up the response
-                refined_text = self._clean_response(refined_text)
+                refined_text = result.get('response', '').strip()
                 
                 # Validate the refinement
                 if self._is_valid_refinement(text, refined_text):
                     return refined_text
                 else:
-                    print(f"   ⚠ Invalid refinement, keeping original")
+                    print(f"[LLM] ⚠ Invalid refinement, keeping original", flush=True)
                     return text
             else:
-                print(f"   ⚠ Qwen API error: {response.status_code}")
+                print(f"[LLM] ⚠ Qwen API error: {response.status_code}", flush=True)
                 return text
                 
         except requests.exceptions.Timeout:
-            print(f"   ⚠ Qwen request timeout")
+            print(f"[LLM] ⚠ Qwen request timeout", flush=True)
             return text
         except Exception as e:
-            print(f"   ⚠ Error calling Qwen: {e}")
+            print(f"[LLM] ⚠ Error calling Qwen: {e}", flush=True)
             return text
     
     def _clean_response(self, text: str) -> str:

@@ -1,6 +1,9 @@
 """Video Composer Module - Creates TikTok video with zoom/pan effects"""
 import moviepy
-from moviepy import (VideoClip, ImageClip, AudioFileClip, CompositeVideoClip, concatenate_videoclips)
+from moviepy.video.VideoClip import VideoClip, ImageClip
+from moviepy.audio.io.AudioFileClip import AudioFileClip
+from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+from moviepy.video.compositing.concatenate import concatenate_videoclips
 from PIL import Image, ImageFilter, ImageDraw, ImageFont
 import numpy as np
 import os
@@ -56,7 +59,8 @@ class VideoComposer:
         # Add voice-over audio (delayed if intro is separate)
         voice_audio = AudioFileClip(audio_path)
         if has_separate_intro:
-            from moviepy import AudioClip, concatenate_audioclips
+            from moviepy.video.VideoClip import AudioClip
+            from moviepy.audio.AudioClip import concatenate_audioclips
             silence = AudioClip(lambda t: 0, duration=actual_intro_duration, fps=44100)
             voice_audio = concatenate_audioclips([silence, voice_audio])
         
@@ -75,10 +79,10 @@ class VideoComposer:
             try:
                 bg_music = AudioFileClip(background_music_path)
                 if bg_music.duration < total_duration:
-                    from moviepy import concatenate_audioclips
+                    from moviepy.audio.AudioClip import concatenate_audioclips
                     loops = int(total_duration / bg_music.duration) + 1
                     bg_music = concatenate_audioclips([bg_music] * loops)
-                bg_music = bg_music.subclipped(0, total_duration)
+                bg_music = bg_music.subclip(0, total_duration)
                 bg_music = bg_music.with_effects([moviepy.audio.fx.MultiplyVolume(0.15)])
                 audio_layers.append(bg_music)
                 print(f"✓ Background music added at 15% volume")
@@ -86,8 +90,8 @@ class VideoComposer:
                 print(f"Warning: Could not add background music: {e}")
         
         # Composite audio
-        from moviepy import CompositeAudioClip
-        video = video.with_audio(CompositeAudioClip(audio_layers))
+        from moviepy.audio.AudioClip import CompositeAudioClip
+        video = video.set_audio(CompositeAudioClip(audio_layers))
         
         # Add subtitles
         time_offset = actual_intro_duration if has_separate_intro else 0
@@ -157,17 +161,17 @@ class VideoComposer:
     def _create_broll_clip(self, video_path: str, target_duration: float) -> VideoClip:
         """Create B-roll video clip with blurred background"""
         try:
-            from moviepy import VideoFileClip
+            from moviepy.video.io.VideoFileClip import VideoFileClip
             if not os.path.exists(video_path):
                 return None
             
             broll = VideoFileClip(video_path).without_audio()
             if broll.duration > target_duration:
-                broll = broll.subclipped(0, target_duration)
+                broll = broll.subclip(0, target_duration)
             elif broll.duration < target_duration:
-                from moviepy import concatenate_videoclips
+                from moviepy.video.compositing.concatenate import concatenate_videoclips
                 loops = int(target_duration / broll.duration) + 1
-                broll = concatenate_videoclips([broll] * loops).subclipped(0, target_duration)
+                broll = concatenate_videoclips([broll] * loops).subclip(0, target_duration)
             
             return self._resize_broll_with_blur(broll)
         except Exception as e:
@@ -235,9 +239,9 @@ class VideoComposer:
         try:
             audio = AudioFileClip(sfx_path)
             if audio.duration < duration:
-                from moviepy import concatenate_audioclips
+                from moviepy.audio.AudioClip import concatenate_audioclips
                 audio = concatenate_audioclips([audio] * (int(duration / audio.duration) + 1))
-            return audio.subclipped(0, duration).with_effects([moviepy.audio.fx.MultiplyVolume(0.3)])
+            return audio.subclip(0, duration).with_effects([moviepy.audio.fx.MultiplyVolume(0.3)])
         except:
             return None
 

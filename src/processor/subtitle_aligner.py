@@ -1,34 +1,23 @@
-"""Subtitle Aligner - Uses Qwen3:4b to align subtitles with original script"""
+"""Subtitle Aligner - Uses qwen3-vl:4b to align subtitles with original script"""
 import requests
 import json
 import pysrt
 
+OLLAMA_URL = "http://172.18.96.1:11434/api/generate"
+OLLAMA_MODEL = "qwen3-vl:4b"
+
 class SubtitleAligner:
-    def __init__(self, ollama_url: str = "http://localhost:11434"):
+    def __init__(self, ollama_url: str = "http://172.18.96.1:11434", model: str = "qwen3-vl:4b"):
         self.ollama_url = ollama_url
-        self.model = "qwen2.5:4b"
+        self.model = model
         
-        # Verify model availability
-        try:
-            response = requests.get(f"{ollama_url}/api/tags", timeout=5)
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                model_names = [m['name'] for m in models]
-                
-                # Find qwen model
-                qwen_models = [name for name in model_names if 'qwen' in name.lower()]
-                if qwen_models:
-                    self.model = qwen_models[0]  # Use first qwen model found
-                    print(f"   Using Ollama model: {self.model}")
-                else:
-                    print(f"   ⚠ No Qwen model found. Available: {model_names}")
-                    print(f"   Install with: ollama pull qwen2.5:4b")
-        except Exception as e:
-            print(f"   ⚠ Cannot verify Ollama models: {e}")
+        print(f"[LLM] Initializing Subtitle Aligner", flush=True)
+        print(f"[LLM] Using API: {OLLAMA_URL}", flush=True)
+        print(f"[LLM] Using model: {OLLAMA_MODEL}", flush=True)
     
     def align_subtitles(self, subtitle_path: str, original_script: str) -> str:
         """
-        Align subtitles with original script using Qwen3:4b
+        Align subtitles with original script using qwen3-vl:4b
         Keeps timeline, replaces text with aligned script
         """
         print(f"   Loading subtitles from: {subtitle_path}")
@@ -51,8 +40,8 @@ class SubtitleAligner:
         print(f"   Whisper transcript length: {len(whisper_text)} chars")
         print(f"   Number of subtitle segments: {len(subtitle_segments)}")
         
-        # Use Qwen3:4b to align the texts
-        print(f"   Calling Qwen3:4b to align texts...")
+        # Use qwen3-vl:4b to align the texts
+        print(f"   Calling qwen3-vl:4b to align texts...")
         aligned_segments = self._align_with_qwen(
             original_script=original_script,
             whisper_text=whisper_text,
@@ -71,7 +60,7 @@ class SubtitleAligner:
         return subtitle_path
     
     def _align_with_qwen(self, original_script: str, whisper_text: str, num_segments: int) -> list:
-        """Use Qwen3:4b to split original script into segments matching subtitle count"""
+        """Use qwen3-vl:4b to split original script into segments matching subtitle count"""
         
         prompt = f"""You are a subtitle alignment assistant. Your task is to split the original script into exactly {num_segments} segments that match the timing of the Whisper-generated subtitles.
 
@@ -94,29 +83,24 @@ Example output format:
 Return the JSON array now:"""
 
         try:
-            # Try chat endpoint first
+            print(f"[LLM] Aligning subtitles with {num_segments} segments", flush=True)
             response = requests.post(
-                f"{self.ollama_url}/api/chat",
+                OLLAMA_URL,
                 json={
-                    "model": self.model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
                     "stream": False,
                     "options": {
                         "temperature": 0.1,
                         "num_predict": 2000
                     }
                 },
-                timeout=60
+                timeout=120
             )
             
             if response.status_code == 200:
                 result = response.json()
-                response_text = result.get('message', {}).get('content', '').strip()
+                response_text = result.get('response', '').strip()
                 
                 # Debug: show what we got
                 if len(response_text) < 500:
@@ -135,10 +119,10 @@ Return the JSON array now:"""
                         
                         # Validate we got the right number of segments
                         if isinstance(segments, list) and len(segments) == num_segments:
-                            print(f"   ✓ Qwen3:4b aligned {len(segments)} segments")
+                            print(f"   ✓ qwen3-vl:4b aligned {len(segments)} segments")
                             return segments
                         else:
-                            print(f"   ⚠ Qwen3:4b returned {len(segments)} segments, expected {num_segments}")
+                            print(f"   ⚠ qwen3-vl:4b returned {len(segments)} segments, expected {num_segments}")
                             return self._simple_split(original_script, num_segments)
                     except json.JSONDecodeError as e:
                         print(f"   ⚠ JSON parse error: {e}")
@@ -152,7 +136,7 @@ Return the JSON array now:"""
                                 if test_json.endswith(']'):
                                     segments = json.loads(test_json)
                                     if isinstance(segments, list) and len(segments) == num_segments:
-                                        print(f"   ✓ Qwen3:4b aligned {len(segments)} segments (after cleanup)")
+                                        print(f"   ✓ qwen3-vl:4b aligned {len(segments)} segments (after cleanup)")
                                         return segments
                             except:
                                 continue
@@ -163,11 +147,11 @@ Return the JSON array now:"""
                     print(f"   ⚠ Could not find JSON array in response")
                     return self._simple_split(original_script, num_segments)
             else:
-                print(f"   ⚠ Qwen3:4b API error: {response.status_code}")
+                print(f"   ⚠ qwen3-vl:4b API error: {response.status_code}")
                 return self._simple_split(original_script, num_segments)
                 
         except Exception as e:
-            print(f"   ⚠ Error calling Qwen3:4b: {e}")
+            print(f"   ⚠ Error calling qwen3-vl:4b: {e}")
             return self._simple_split(original_script, num_segments)
     
     def _simple_split(self, text: str, num_segments: int) -> list:

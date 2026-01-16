@@ -5,7 +5,7 @@ Automated pipeline to convert Vietnamese news articles into TikTok-ready vertica
 ## Features
 
 - 📰 **Auto-crawl** news from VnExpress, Tien Phong
-- 🤖 **AI Summarization** using Qwen3:4B via Ollama (chunked processing for long articles)
+- 🤖 **AI Summarization** using qwen3-vl:4b via Ollama (chunked processing for long articles)
 - 🎤 **GPU-accelerated TTS** with VieNeu-TTS (multiple Vietnamese voices)
 - 🎬 **Pan effects** with blurred background for images/videos
 - 💬 **Auto-subtitles** with Whisper + AI alignment
@@ -50,7 +50,7 @@ sudo apt install espeak-ng
 sudo apt install libreoffice
 ```
 
-### 3. Install Ollama and Qwen3:4B (Summarization)
+### 3. Install Ollama and qwen3-vl:4b (Summarization)
 
 ```bash
 # Install Ollama
@@ -59,14 +59,14 @@ curl -fsSL https://ollama.com/install.sh | sh
 # Start Ollama service
 ollama serve
 
-# Pull Qwen3:4B model (~2.5GB)
-ollama pull qwen3:4b
+# Pull qwen3-vl:4b model (~2.5GB)
+ollama pull qwen3-vl:4b
 ```
 
 Verify installation:
 ```bash
 ollama list
-# Should show: qwen3:4b
+# Should show: qwen3-vl:4b
 ```
 
 ### 4. Install VieNeu-TTS Model (Text-to-Speech)
@@ -115,7 +115,7 @@ print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"
 
 | Model | Purpose | Size | Location |
 |-------|---------|------|----------|
-| Qwen3:4B | News summarization | ~2.5GB | Ollama (~/.ollama/models) |
+| qwen3-vl:4b | News summarization | ~2.5GB | Ollama (~/.ollama/models) |
 | VieNeu-TTS-0.3B | Vietnamese TTS | ~1.2GB | HuggingFace cache or models/VieNeu-TTS |
 | Whisper base | Subtitle transcription | ~140MB | ~/.cache/whisper |
 
@@ -180,7 +180,7 @@ ai-content-tiktok/
 ├── src/
 │   ├── crawler/news_crawler.py       # Web scraping
 │   ├── processor/
-│   │   ├── content_summarizer.py     # Qwen3:4B chunked summarization
+│   │   ├── content_summarizer.py     # qwen3-vl:4b chunked summarization
 │   │   ├── news_refiner.py           # Grammar/spelling refinement
 │   │   ├── text_corrector.py         # Diacritics correction
 │   │   └── subtitle_aligner.py       # AI subtitle alignment
@@ -200,7 +200,7 @@ ai-content-tiktok/
 ## Processing Pipeline
 
 ```
-1. Crawl Article → 2. Chunk & Summarize (Qwen3:4B) → 3. Refine Text →
+1. Crawl Article → 2. Chunk & Summarize (qwen3-vl:4b) → 3. Refine Text →
 4. Final Cleanup → 5. Generate TTS (GPU) → 6. Whisper Transcription →
 7. AI Subtitle Alignment → 8. Render Intro (PowerPoint) → 9. Compose Video
 ```
@@ -276,7 +276,7 @@ Open source - Free for commercial use
 
 ## Credits
 
-- **Summarization**: Qwen3:4B via Ollama
+- **Summarization**: qwen3-vl:4b via Ollama
 - **TTS**: VieNeu-TTS (GPU-accelerated Vietnamese)
 - **Transcription**: OpenAI Whisper
 - **Video**: MoviePy

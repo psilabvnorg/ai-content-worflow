@@ -4,7 +4,7 @@ from huggingface_hub import snapshot_download
 repo_id = "pnnbao-ump/VieNeu-TTS"
 
 # Your target local directory
-local_dir = "/home/x/Desktop/ai-content-tiktok/models/VieNeu-TTS"
+local_dir = "/home/psilab/ai-content-worflow/models/VieNeu-TTS"
 
 # Download the model
 print(f"Downloading {repo_id} to {local_dir}...")

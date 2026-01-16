@@ -2,25 +2,19 @@
 import requests
 import re
 
+OLLAMA_URL = "http://172.18.96.1:11434/api/generate"
+OLLAMA_MODEL = "qwen3-vl:4b"
+
 class ContentSummarizer:
-    def __init__(self, language: str = "vietnamese", ollama_url: str = "http://localhost:11434"):
+    def __init__(self, language: str = "vietnamese", ollama_url: str = "http://172.18.96.1:11434", model: str = "qwen3-vl:4b"):
         self.language = language
         self.ollama_url = ollama_url
-        self.model = "qwen3:4b"
+        self.model = model
         self.max_chunk_chars = 1500  # Keep chunks small for 4b model
         
-        try:
-            response = requests.get(f"{ollama_url}/api/tags", timeout=5)
-            if response.status_code == 200:
-                models = [m['name'] for m in response.json().get('models', [])]
-                qwen3 = [n for n in models if 'qwen3' in n.lower()]
-                if qwen3:
-                    self.model = qwen3[0]
-                elif [n for n in models if 'qwen' in n.lower()]:
-                    self.model = [n for n in models if 'qwen' in n.lower()][0]
-                print(f"✓ Content Summarizer using Ollama model: {self.model}")
-        except Exception as e:
-            print(f"⚠ Cannot connect to Ollama: {e}")
+        print(f"[LLM] Initializing Content Summarizer", flush=True)
+        print(f"[LLM] Using API: {OLLAMA_URL}", flush=True)
+        print(f"[LLM] Using model: {OLLAMA_MODEL}", flush=True)
     
     def _split_into_chunks(self, text: str) -> list:
         """Split text into chunks at sentence boundaries"""
@@ -43,32 +37,35 @@ class ContentSummarizer:
     
     def _summarize_chunk(self, chunk: str, chunk_num: int, total_chunks: int) -> str:
         """Summarize a single chunk"""
-        prompt = f"""/no_think
-Tóm tắt đoạn văn sau (phần {chunk_num}/{total_chunks}) thành 2-3 câu ngắn gọn, giữ nguyên thông tin quan trọng:
+        prompt = f"""Tóm tắt đoạn văn sau (phần {chunk_num}/{total_chunks}) thành 2-3 câu ngắn gọn, giữ nguyên thông tin quan trọng:
 
 "{chunk}"
 
 Tóm tắt ngắn gọn:"""
 
         try:
+            print(f"[LLM] Processing chunk {chunk_num}/{total_chunks}", flush=True)
             response = requests.post(
-                f"{self.ollama_url}/api/chat",
+                OLLAMA_URL,
                 json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
                     "stream": False,
-                    "options": {"temperature": 0.2, "num_predict": 500}
+                    "options": {
+                        "temperature": 0.2,
+                        "num_predict": 500
+                    }
                 },
                 timeout=60
             )
             
             if response.status_code == 200:
                 result = response.json()
-                summary = result.get('message', {}).get('content', '').strip()
+                summary = result.get('response', '').strip()
                 summary = re.sub(r'<think>.*?</think>', '', summary, flags=re.DOTALL)
                 return summary.strip()
         except Exception as e:
-            print(f"      ⚠ Chunk {chunk_num} error: {e}")
+            print(f"[LLM] Chunk {chunk_num} error: {e}", flush=True)
         
         return ""
     
@@ -76,8 +73,7 @@ Tóm tắt ngắn gọn:"""
         """Combine chunk summaries into final coherent summary"""
         combined = " ".join(s for s in summaries if s)
         
-        prompt = f"""/no_think
-Bạn là biên tập viên tin tức. Viết lại đoạn tóm tắt sau thành bài tin tức hoàn chỉnh, mạch lạc, khoảng {target_words} từ để đọc trên TikTok.
+        prompt = f"""Bạn là biên tập viên tin tức. Viết lại đoạn tóm tắt sau thành bài tin tức hoàn chỉnh, mạch lạc, khoảng {target_words} từ để đọc trên TikTok.
 
 Tiêu đề: {title}
 
@@ -93,25 +89,29 @@ QUY TẮC:
 Bài tin tức hoàn chỉnh:"""
 
         try:
+            print(f"[LLM] Combining summaries into final article", flush=True)
             response = requests.post(
-                f"{self.ollama_url}/api/chat",
+                OLLAMA_URL,
                 json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
                     "stream": False,
-                    "options": {"temperature": 0.3, "num_predict": 2000}
+                    "options": {
+                        "temperature": 0.3,
+                        "num_predict": 2000
+                    }
                 },
                 timeout=120
             )
             
             if response.status_code == 200:
                 result = response.json()
-                final = result.get('message', {}).get('content', '').strip()
+                final = result.get('response', '').strip()
                 final = self._clean_summary(final)
                 if final and len(final.split()) >= 80:
                     return final
         except Exception as e:
-            print(f"   ⚠ Combine error: {e}")
+            print(f"[LLM] Combine error: {e}", flush=True)
         
         # Fallback: just clean and return combined
         return self._clean_summary(combined)
@@ -154,8 +154,7 @@ Bài tin tức hoàn chỉnh:"""
         """Direct summarization for short articles"""
         full_text = f"Tiêu đề: {article['title']}\n\nNội dung: {article.get('description', '')} {article.get('content', '')}"
         
-        prompt = f"""/no_think
-Tóm tắt bài báo sau thành khoảng {target_words} từ:
+        prompt = f"""Tóm tắt bài báo sau thành khoảng {target_words} từ:
 
 {full_text}
 
@@ -164,23 +163,27 @@ QUY TẮC: Số viết liền (1890 không phải 1.890), ngày viết chữ (m�
 Tóm tắt:"""
 
         try:
+            print(f"[LLM] Direct summarization for article", flush=True)
             response = requests.post(
-                f"{self.ollama_url}/api/chat",
+                OLLAMA_URL,
                 json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
                     "stream": False,
-                    "options": {"temperature": 0.2, "num_predict": 2000}
+                    "options": {
+                        "temperature": 0.2,
+                        "num_predict": 2000
+                    }
                 },
                 timeout=120
             )
             
             if response.status_code == 200:
                 result = response.json()
-                summary = result.get('message', {}).get('content', '').strip()
+                summary = result.get('response', '').strip()
                 return self._clean_summary(summary)
         except Exception as e:
-            print(f"   ⚠ Direct summarize error: {e}")
+            print(f"[LLM] Direct summarize error: {e}", flush=True)
         
         return self._fallback_summarize(article)
     

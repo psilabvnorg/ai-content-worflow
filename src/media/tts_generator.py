@@ -37,64 +37,63 @@ class TTSGenerator:
     def _init_vieneu_tts(self):
         """Initialize VieNeu-TTS for high-quality Vietnamese speech with GPU support"""
         try:
+            print("[TTS] ========== VieNeu-TTS Initialization ==========", flush=True)
+            
             from vieneu import Vieneu
             import torch
             
-            print("Loading VieNeu-TTS model...")
+            print("[TTS] ✓ vieneu module imported", flush=True)
             
             # Check GPU availability
             has_cuda = torch.cuda.is_available()
             if has_cuda:
                 gpu_name = torch.cuda.get_device_name(0)
-                print(f"   GPU detected: {gpu_name}")
-                print(f"   CUDA version: {torch.version.cuda}")
+                print(f"[TTS] ✓ GPU detected: {gpu_name}", flush=True)
+                print(f"[TTS] ✓ CUDA version: {torch.version.cuda}", flush=True)
             else:
-                print("   ⚠ No GPU detected, using CPU (slower)")
-            
-            # Model selection:
-            # For GPU: Use PyTorch models (not GGUF) for proper GPU acceleration
-            # - "pnnbao-ump/VieNeu-TTS" (0.5B, best quality)
-            # - "pnnbao-ump/VieNeu-TTS-0.3B" (0.3B, faster, good quality)
-            # For CPU: GGUF models are optimized
-            # - "pnnbao-ump/VieNeu-TTS-0.3B-q8-gguf"
-            # - "pnnbao-ump/VieNeu-TTS-0.3B-q4-gguf"
+                print("[TTS] ⚠ No GPU, using CPU (slower)", flush=True)
             
             local_model_path = "models/VieNeu-TTS"
             
+            print(f"[TTS] Model path: {local_model_path}", flush=True)
+            print(f"[TTS] Model exists: {os.path.exists(local_model_path)}", flush=True)
+            
             if has_cuda:
-                # GPU mode: Use PyTorch model with CUDA device
                 device = "cuda"
                 if os.path.exists(local_model_path):
-                    print(f"   Using local PyTorch model: {local_model_path}")
+                    print(f"[TTS] Loading local model from: {local_model_path}", flush=True)
                     self.tts = Vieneu(
                         backbone_repo=local_model_path,
                         backbone_device=device,
                         codec_device=device
                     )
+                    print("[TTS] ✓ Local model loaded", flush=True)
                 else:
-                    # Use 0.3B for faster GPU inference, still great quality
-                    print("   Using HuggingFace model: pnnbao-ump/VieNeu-TTS-0.3B (GPU)")
+                    print("[TTS] Loading HuggingFace model: pnnbao-ump/VieNeu-TTS-0.3B", flush=True)
                     self.tts = Vieneu(
                         backbone_repo="pnnbao-ump/VieNeu-TTS-0.3B",
                         backbone_device=device,
                         codec_device=device
                     )
-                print(f"   ✓ Running on GPU: {gpu_name}")
+                    print("[TTS] ✓ HuggingFace model loaded", flush=True)
             else:
-                # CPU mode: Use quantized GGUF for better CPU performance
-                print("   Using quantized model for CPU: pnnbao-ump/VieNeu-TTS-0.3B-q8-gguf")
+                print("[TTS] Loading CPU model: pnnbao-ump/VieNeu-TTS-0.3B-q8-gguf", flush=True)
                 self.tts = Vieneu(backbone_repo="pnnbao-ump/VieNeu-TTS-0.3B-q8-gguf")
-                print("   Running on CPU")
+                print("[TTS] ✓ CPU model loaded", flush=True)
             
             # List available preset voices
-            available_voices = self.tts.list_preset_voices()
-            print(f"   Available voices: {available_voices}")
+            print("[TTS] Listing available voices...", flush=True)
+            voices_list = self.tts.list_preset_voices()
+            print(f"[TTS] Raw voices list: {voices_list}", flush=True)
             
-            # Select voice based on argument or default to male Northern
+            # voices_list is a list of tuples: [(display_name, short_name), ...]
+            # Extract just the short names for easier matching
+            available_voices = [v[1] if isinstance(v, tuple) else v for v in voices_list]
+            print(f"[TTS] Available voice keys: {available_voices}", flush=True)
+            
+            # Select voice
             if self.voice_name:
-                # User specified a voice
                 voice_key = self.voice_name.lower()
-                # Map common names to actual voice names
                 voice_map = {
                     "binh": "Binh", "bình": "Binh",
                     "tuyen": "Tuyen", "tuyên": "Tuyen",
@@ -111,46 +110,57 @@ class TTSGenerator:
                 
                 if target_voice in available_voices:
                     self.current_voice = self.tts.get_preset_voice(target_voice)
-                    print(f"   Selected voice: {target_voice}")
+                    print(f"[TTS] ✓ Selected voice: {target_voice}", flush=True)
                 else:
-                    print(f"   ⚠ Voice '{self.voice_name}' not found, using default")
-                    # Fall back to default male Northern
+                    print(f"[TTS] ⚠ Voice '{self.voice_name}' not found, using default", flush=True)
                     for v in ["Binh", "Tuyen"]:
                         if v in available_voices:
                             self.current_voice = self.tts.get_preset_voice(v)
-                            print(f"   Selected voice: {v} (default male Northern)")
+                            print(f"[TTS] ✓ Selected voice: {v} (default male Northern)", flush=True)
                             break
             else:
-                # Default: male Northern accent (Binh or Tuyen)
                 default_voices = ["Binh", "Tuyen"]
                 for voice_name in default_voices:
                     if voice_name in available_voices:
                         self.current_voice = self.tts.get_preset_voice(voice_name)
-                        print(f"   Selected voice: {voice_name} (default male Northern)")
+                        print(f"[TTS] ✓ Selected voice: {voice_name} (default male Northern)", flush=True)
                         break
             
             if self.current_voice is None and available_voices:
                 self.current_voice = self.tts.get_preset_voice(available_voices[0])
-                print(f"   Selected voice: {available_voices[0]} (fallback)")
+                print(f"[TTS] ✓ Selected voice: {available_voices[0]} (fallback)", flush=True)
             
-            print(f"✓ VieNeu-TTS loaded (24kHz, {'GPU' if has_cuda else 'CPU'} mode)")
+            mode = "GPU" if has_cuda else "CPU"
+            print(f"[TTS] ✓✓✓ VieNeu-TTS READY (24kHz, {mode} mode) ✓✓✓", flush=True)
+            print("[TTS] ==============================================", flush=True)
             
-        except ImportError:
-            print("⚠ vieneu not installed. Install with: pip install vieneu")
-            print("  Also requires: espeak-ng (sudo apt install espeak-ng)")
-            print("  Falling back to edge-tts...")
+        except ImportError as e:
+            print(f"[TTS] ✗✗✗ IMPORT ERROR ✗✗✗", flush=True)
+            print(f"[TTS] vieneu not installed: {e}", flush=True)
+            print("[TTS] Install with: pip install vieneu", flush=True)
+            print("[TTS] Also requires: espeak-ng (sudo apt install espeak-ng)", flush=True)
             self.tts = None
+            
         except Exception as e:
-            print(f"⚠ Failed to load VieNeu-TTS: {e}")
-            print("  Falling back to edge-tts...")
+            print(f"[TTS] ✗✗✗ INITIALIZATION ERROR ✗✗✗", flush=True)
+            print(f"[TTS] Error type: {type(e).__name__}", flush=True)
+            print(f"[TTS] Error message: {e}", flush=True)
+            import traceback
+            print("[TTS] Traceback:", flush=True)
+            traceback.print_exc()
             self.tts = None
     
     def generate(self, text: str, output_path: str) -> str:
         """Generate speech audio file"""
+        print(f"[TTS] Generating audio: {output_path}", flush=True)
+        print(f"[TTS] VieNeu-TTS available: {self.tts is not None}", flush=True)
+        
         if self.language == "vietnamese" and self.tts is not None:
+            print("[TTS] Using VieNeu-TTS (preferred)", flush=True)
             return self._generate_vieneu_tts(text, output_path)
         else:
-            import asyncio
+            print("[TTS] VieNeu-TTS not available, BLOCKING edge-tts fallback", flush=True)
+            raise RuntimeError("[TTS] VieNeu-TTS not initialized - cannot generate audio. Fix VieNeu-TTS initialization.")
             return asyncio.run(self._generate_edge_tts(text, output_path))
     
     def _generate_vieneu_tts(self, text: str, output_path: str) -> str:

@@ -27,18 +27,61 @@ class TikTokNewsGenerator:
         self.template = template  # PowerPoint template slide name
         self.intro_duration = intro_duration  # None = full video, float = seconds
         
-        # Initialize modules
+        # Initialize modules with detailed logging
+        print("\n" + "="*60)
         print("Initializing TikTok News Generator...")
+        print("="*60)
+        
+        print("\n[1/10] Loading NewsCrawler...", flush=True)
+        sys.stdout.flush()
         self.crawler = NewsCrawler()
+        print("✓ NewsCrawler loaded", flush=True)
+        
+        print("[2/10] Loading ContentSummarizer...", flush=True)
+        sys.stdout.flush()
         self.summarizer = ContentSummarizer(language=language)
+        print("✓ ContentSummarizer loaded", flush=True)
+        
+        print("[3/10] Loading TextCorrector...", flush=True)
+        sys.stdout.flush()
         self.text_corrector = TextCorrector()
+        print("✓ TextCorrector loaded", flush=True)
+        
+        print("[4/10] Loading TextNormalizer...", flush=True)
+        sys.stdout.flush()
         self.text_normalizer = TextNormalizer()
+        print("✓ TextNormalizer loaded", flush=True)
+        
+        print("[5/10] Loading NewsRefiner...", flush=True)
+        sys.stdout.flush()
         self.news_refiner = NewsRefiner()
+        print("✓ NewsRefiner loaded", flush=True)
+        
+        print("[6/10] Loading SubtitleAligner...", flush=True)
+        sys.stdout.flush()
         self.subtitle_aligner = SubtitleAligner()
+        print("✓ SubtitleAligner loaded", flush=True)
+        
+        print("[7/10] Loading TTSGenerator...", flush=True)
+        sys.stdout.flush()
         self.tts = TTSGenerator(language=language, voice=voice)
+        print("✓ TTSGenerator loaded", flush=True)
+        
+        print("[8/10] Loading SubtitleGenerator...", flush=True)
+        sys.stdout.flush()
         self.subtitle_gen = SubtitleGenerator()
+        print("✓ SubtitleGenerator loaded", flush=True)
+        
+        print("[9/10] Loading VideoComposer...", flush=True)
+        sys.stdout.flush()
         self.video_composer = VideoComposer()
+        print("✓ VideoComposer loaded", flush=True)
+        
+        print("[10/10] Loading SocialPublisher...", flush=True)
+        sys.stdout.flush()
         self.publisher = SocialPublisher(platform="tiktok")
+        print("✓ SocialPublisher loaded", flush=True)
+        
         
         if image_dir:
             print(f"✓ Using custom image directory: {image_dir}")
@@ -107,9 +150,9 @@ class TikTokNewsGenerator:
         print(f"   ✓ Corrected body: {script['word_count']} words")
         print(f"   Preview: {script['body'][:100]}...")
         
-        # Step 2.8: Refine news summarization with Qwen3:4B
+        # Step 2.8: Refine news summarization with qwen3-vl:4b
         print("\n✨ Step 2.8: Refining news summarization...")
-        print("   Using Qwen3:4B to improve grammar, spelling, punctuation, and wording...")
+        print("   Using qwen3-vl:4b to improve grammar, spelling, punctuation, and wording...")
         script = self.news_refiner.refine_script(script)
         print(f"   ✓ Refined body: {script['word_count']} words")
         
@@ -220,9 +263,9 @@ class TikTokNewsGenerator:
         # The script is already corrected before TTS, so Whisper should transcribe it correctly
         self.subtitle_gen.generate_from_audio(audio_path, subtitle_path)
         
-        # Step 4.5: Align subtitles with original script using Qwen3:4b
+        # Step 4.5: Align subtitles with original script using qwen3-vl:4b
         print("\n🔄 Step 4.5: Aligning subtitles with original script...")
-        print("   Using Qwen3:4b to match subtitle timing with corrected text...")
+        print("   Using qwen3-vl:4b to match subtitle timing with corrected text...")
         self.subtitle_aligner.align_subtitles(subtitle_path, full_script)
         
         # Step 5: Compose video
@@ -353,7 +396,13 @@ class TikTokNewsGenerator:
 def main():
     """Example usage with CLI arguments"""
     
+    print("\n" + "="*60)
+    print("TikTok News Video Generator - Starting...", flush=True)
+    print("="*60 + "\n")
+    
     # Parse command line arguments
+    print("[INIT] Parsing command line arguments...", flush=True)
+    sys.stdout.flush()
     parser = argparse.ArgumentParser(description='TikTok News Video Generator')
     parser.add_argument('--url', type=str, help='News article URL')
     parser.add_argument('--image-dir', type=str, help='Custom directory for video images')
@@ -365,6 +414,7 @@ def main():
                         help='Intro duration in seconds, or "none" for full video (default: 3)')
     
     args = parser.parse_args()
+    print("✓ Arguments parsed\n", flush=True)
     
     print("TikTok News Video Generator")
     print("=" * 60)
@@ -420,9 +470,12 @@ def main():
         template=args.template,
         intro_duration=intro_duration
     )
+    print("\n✓ All modules initialized successfully!\n")
     
     # Generate video
     try:
+        print("[MAIN] Starting video generation pipeline...", flush=True)
+        sys.stdout.flush()
         video_path = generator.generate_video(news_url, output_name=args.output)
         print(f"\n🎉 Success! Video saved to: {video_path}")
     except Exception as e:
