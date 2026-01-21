@@ -8,7 +8,7 @@ Automated pipeline to convert Vietnamese news articles into TikTok-ready vertica
 - 🤖 **AI Summarization** using qwen3-vl:4b via Ollama (chunked processing for long articles)
 - 🎤 **GPU-accelerated TTS** with VieNeu-TTS (multiple Vietnamese voices)
 - 🎬 **Pan effects** with blurred background for images/videos
-- 💬 **Auto-subtitles** with Whisper + AI alignment
+- 💬 **Auto-subtitles** with Whisper word-level timing + intelligent text alignment
 - 🎨 **PowerPoint Templates** - design custom intros in PowerPoint
 - 🎵 **Background music** with typing SFX during intro
 - 📄 **Summary Export** in text and JSON formats
@@ -96,7 +96,8 @@ git clone https://huggingface.co/pnnbao-ump/VieNeu-TTS models/VieNeu-TTS
 # Install openai-whisper
 pip install openai-whisper
 
-# The model downloads automatically on first run (~140MB for base model)
+# The model downloads automatically on first run
+# System will try base model first (~140MB), then fall back to smaller models if GPU memory is limited
 # Or pre-download:
 python -c "import whisper; whisper.load_model('base')"
 ```
@@ -125,10 +126,10 @@ print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"
 # Basic usage
 python src/main.py --url "https://vnexpress.net/..."
 
-# With custom intro template
+# With custom intro template (separate 5-second intro with fade out)
 python src/main.py --url "https://vnexpress.net/..." --template "psi" --intro-duration 5
 
-# Full video intro (no fade out)
+# Intro overlay mode (intro stays as transparent overlay for entire video)
 python src/main.py --url "https://vnexpress.net/..." --template 0 --intro-duration none
 
 # With custom voice
@@ -144,7 +145,7 @@ python src/main.py --url "https://vnexpress.net/..." --voice huong
 | `--broll-dir` | Directory with B-roll videos (.mp4, .mov) | None |
 | `--voice` | Voice name (see table below) | binh |
 | `--template` | Intro template (slide name or index from PowerPoint) | None |
-| `--intro-duration` | Intro duration in seconds, or "none" for full video | 3 |
+| `--intro-duration` | Intro duration in seconds (separate clip with fade), or "none" for overlay mode (stays entire video) | 3 |
 | `--output` | Output video name (without extension) | auto-generated |
 
 ## PowerPoint Intro Templates
@@ -156,12 +157,19 @@ Design custom intro templates in `templates/intro_template.pptx`:
 3. Article image is placed at the bottom layer automatically
 4. All styling (transparency, colors, icons) is preserved
 
+**Intro Modes:**
+- **Separate intro** (`--intro-duration 3`): Intro plays as separate clip with fade out, then content starts
+- **Overlay mode** (`--intro-duration none`): Intro stays as transparent overlay at top while images/videos transition underneath for entire video
+
 ```bash
 # Use slide by name (searches slide text)
 python src/main.py --url "..." --template "psi"
 
 # Use slide by index (0-based)
 python src/main.py --url "..." --template 0
+
+# Overlay mode - intro stays entire video
+python src/main.py --url "..." --template "psi" --intro-duration none
 ```
 
 ## Available Voices
@@ -182,13 +190,12 @@ ai-content-tiktok/
 │   ├── processor/
 │   │   ├── content_summarizer.py     # qwen3-vl:4b chunked summarization
 │   │   ├── news_refiner.py           # Grammar/spelling refinement
-│   │   ├── text_corrector.py         # Diacritics correction
-│   │   └── subtitle_aligner.py       # AI subtitle alignment
+│   │   └── text_corrector.py         # Diacritics correction
 │   ├── media/
 │   │   ├── tts_generator.py          # VieNeu-TTS (GPU)
 │   │   ├── video_composer.py         # Video composition
 │   │   ├── intro_renderer.py         # PowerPoint template rendering
-│   │   └── subtitle_generator.py     # Whisper transcription
+│   │   └── subtitle_generator.py     # Whisper + intelligent alignment
 │   └── main.py                       # Main orchestrator
 ├── templates/intro_template.pptx     # PowerPoint intro templates
 ├── assets/                           # Logo, icons, music, SFX
@@ -200,10 +207,23 @@ ai-content-tiktok/
 ## Processing Pipeline
 
 ```
-1. Crawl Article → 2. Chunk & Summarize (qwen3-vl:4b) → 3. Refine Text →
-4. Final Cleanup → 5. Generate TTS (GPU) → 6. Whisper Transcription →
-7. AI Subtitle Alignment → 8. Render Intro (PowerPoint) → 9. Compose Video
+1. Crawl Article → 2. Chunk & Summarize (Qwen3:4B) → 3. Refine Text →
+4. Final Cleanup → 5. Generate TTS (GPU) → 6. Whisper Word-Level Timing →
+7. Intelligent Subtitle Alignment → 8. Render Intro (PowerPoint) → 9. Compose Video
 ```
+
+### Subtitle Synchronization
+
+The subtitle system uses a hybrid approach for perfect timing:
+
+1. **Whisper** extracts precise word-level timestamps from audio (uses base model with automatic fallback to smaller models if GPU memory is limited)
+2. **Corrected script** provides accurate Vietnamese text (no transcription errors)
+3. **Intelligent alignment** maps corrected words to Whisper timing using:
+   - Direct word matching (exact matches)
+   - Fuzzy matching (similar words)
+   - Proportional timing fallback (when no match found)
+
+This ensures subtitles are perfectly synchronized with voice-over while displaying correct Vietnamese text.
 
 ## Text Processing
 
@@ -258,11 +278,12 @@ libreoffice --headless --convert-to png templates/intro_template.pptx
 
 ### Whisper model download fails
 ```bash
-# Manual download
+# Manual download (base model - good balance of accuracy and speed)
 python -c "import whisper; whisper.load_model('base')"
 
-# Or use smaller model
-python -c "import whisper; whisper.load_model('tiny')"
+# System automatically falls back to smaller models (small, tiny) if GPU memory is limited
+# Or force CPU mode if needed
+python -c "import whisper; whisper.load_model('base', device='cpu')"
 ```
 
 ### Summary too short or cut off
@@ -278,7 +299,7 @@ Open source - Free for commercial use
 
 - **Summarization**: qwen3-vl:4b via Ollama
 - **TTS**: VieNeu-TTS (GPU-accelerated Vietnamese)
-- **Transcription**: OpenAI Whisper
+- **Transcription**: OpenAI Whisper (adaptive model selection)
 - **Video**: MoviePy
 
 ---

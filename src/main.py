@@ -259,14 +259,34 @@ class TikTokNewsGenerator:
         print("\n💬 Step 4: Generating subtitles...")
         subtitle_path = f"output/temp/{output_name}.srt"
         os.makedirs("output/temp", exist_ok=True)
-        # DO NOT pass text corrector - use Whisper output as-is
-        # The script is already corrected before TTS, so Whisper should transcribe it correctly
-        self.subtitle_gen.generate_from_audio(audio_path, subtitle_path)
         
-        # Step 4.5: Align subtitles with original script using qwen3-vl:4b
-        print("\n🔄 Step 4.5: Aligning subtitles with original script...")
-        print("   Using qwen3-vl:4b to match subtitle timing with corrected text...")
-        self.subtitle_aligner.align_subtitles(subtitle_path, full_script)
+        # Pass the corrected script to subtitle generator for alignment
+        self.subtitle_gen.set_original_script(full_script)
+        
+        try:
+            self.subtitle_gen.generate_from_audio(audio_path, subtitle_path)
+            print(f"   ✓ Subtitle file created: {subtitle_path}")
+            
+            # Verify file exists
+            if not os.path.exists(subtitle_path):
+                raise FileNotFoundError(f"Subtitle file was not created: {subtitle_path}")
+            
+            print(f"   ✓ Subtitles aligned with corrected script using Whisper timing")
+        except Exception as e:
+            print(f"   ❌ Subtitle generation failed: {e}")
+            print(f"   Creating fallback subtitles...")
+            # Create a simple fallback subtitle
+            import pysrt
+            subs = pysrt.SubRipFile()
+            sub = pysrt.SubRipItem(
+                index=1,
+                start={'hours': 0, 'minutes': 0, 'seconds': 0, 'milliseconds': 0},
+                end={'hours': 0, 'minutes': 0, 'seconds': 10, 'milliseconds': 0},
+                text=full_script[:100] + "..."
+            )
+            subs.append(sub)
+            subs.save(subtitle_path, encoding='utf-8')
+            print(f"   ✓ Fallback subtitle created")
         
         # Step 5: Compose video
         print("\n🎬 Step 5: Composing video...")

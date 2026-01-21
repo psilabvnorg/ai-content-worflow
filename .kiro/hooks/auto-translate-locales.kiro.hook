@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "name": "Auto Translate Locales",
+  "description": "Monitors changes to localization files (.json, .yaml, .yml) and automatically generates translations for all configured target languages when new or modified text is detected.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/locales/**/*.json",
+      "**/locales/**/*.yaml",
+      "**/locales/**/*.yml",
+      "**/i18n/**/*.json",
+      "**/i18n/**/*.yaml",
+      "**/i18n/**/*.yml",
+      "**/lang/**/*.json",
+      "**/translations/**/*.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A localization file was edited. Please:\n1. Identify the new or modified text entries in the changed file\n2. Determine the primary/source language from the file path or content\n3. Find all other language files in the same localization directory structure\n4. Generate accurate translations for each target language, maintaining:\n   - Proper context and meaning\n   - Locale-specific conventions (date formats, number formats, pluralization rules)\n   - Consistent terminology with existing translations\n   - Placeholder variables unchanged (e.g., {name}, {{count}}, %s)\n5. Update the corresponding translation files with the new translations\n6. Report which languages were updated and any entries that may need human review"
+  }
+}

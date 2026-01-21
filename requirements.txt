@@ -23,6 +23,7 @@ opencv-python==4.8.1.78
 
 # Subtitle Generation
 pysrt==1.1.2
+openai-whisper>=20231117
 
 # PowerPoint Templates
 python-pptx==0.6.23

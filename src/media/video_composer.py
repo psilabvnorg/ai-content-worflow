@@ -23,9 +23,10 @@ class VideoComposer:
         if not images:
             raise ValueError("No images provided")
         
-        # Determine intro duration (None = full video)
-        actual_intro_duration = audio_duration if intro_duration is None else intro_duration
-        has_separate_intro = intro_duration is not None and title
+        # Determine intro mode
+        full_video_intro = intro_duration is None  # True = intro stays for whole video
+        actual_intro_duration = audio_duration if full_video_intro else intro_duration
+        has_separate_intro = not full_video_intro and title
         
         # Calculate timing for content clips
         total_media_count = len(images) + (len(broll_videos) if broll_videos else 0)
@@ -33,12 +34,16 @@ class VideoComposer:
         
         clips = []
         
-        # Add intro clip with fade out if --intro-duration is specified
-        if title:
+        # Create intro overlay (stays for whole video when intro_duration=none)
+        intro_overlay = None
+        if title and full_video_intro:
+            # Create intro as overlay that stays for entire video
+            intro_overlay = self._create_intro_overlay(title, images[0], audio_duration, template)
+            print(f"✓ Created intro overlay for full video duration ({audio_duration:.1f}s)")
+        elif title and has_separate_intro:
+            # Create intro as separate clip with fade out
             intro_clip = self._create_intro_clip(title, images[0], actual_intro_duration, template)
-            if has_separate_intro:
-                # Add fade out effect at the end of intro
-                intro_clip = intro_clip.with_effects([moviepy.video.fx.CrossFadeOut(0.5)])
+            intro_clip = intro_clip.with_effects([moviepy.video.fx.CrossFadeOut(0.5)])
             clips.append(intro_clip)
         
         # Create image clips with pan left-to-right effect
@@ -55,6 +60,11 @@ class VideoComposer:
         
         # Concatenate all clips
         video = concatenate_videoclips(clips, method="compose")
+        
+        # If intro overlay exists, composite it on top of the video
+        if intro_overlay:
+            video = CompositeVideoClip([video, intro_overlay])
+            print(f"✓ Composited intro overlay on top of video")
         
         # Add voice-over audio (delayed if intro is separate)
         voice_audio = AudioFileClip(audio_path)
@@ -288,6 +298,32 @@ class VideoComposer:
         
         return self._create_fallback_intro(title, image_path, duration)
     
+    def _create_intro_overlay(self, title: str, image_path: str, duration: float, template: str = None) -> VideoClip:
+        """Create intro overlay that stays on top for entire video duration"""
+        if template:
+            try:
+                from media.intro_renderer import IntroTemplateRenderer
+                renderer = IntroTemplateRenderer("templates/intro_template.pptx")
+                slides = renderer.list_slides()
+                slide_idx = 0
+                for s in slides:
+                    for text in s.get('preview_text', []):
+                        if template.lower() in text.lower():
+                            slide_idx = s['index']
+                            break
+                try:
+                    slide_idx = int(template)
+                except:
+                    pass
+                intro_array = renderer.render_to_numpy(slide_idx, title, image_path)
+                print(f"✓ Using PowerPoint template slide {slide_idx} as overlay")
+                # Create overlay with transparency support
+                return ImageClip(intro_array, duration=duration).with_position(('center', 'center'))
+            except Exception as e:
+                print(f"⚠ PowerPoint template failed: {e}, using fallback overlay")
+        
+        return self._create_fallback_intro_overlay(title, image_path, duration)
+    
     def _create_fallback_intro(self, title: str, image_path: str, duration: float) -> VideoClip:
         """Fallback intro"""
         img = Image.open(image_path).convert('RGB')
@@ -320,6 +356,38 @@ class VideoComposer:
             y += 60
         
         return ImageClip(np.array(img.convert('RGB')), duration=duration)
+    
+    def _create_fallback_intro_overlay(self, title: str, image_path: str, duration: float) -> VideoClip:
+        """Fallback intro overlay with semi-transparent background"""
+        # Create a semi-transparent overlay with title text
+        img = Image.new('RGBA', (self.width, self.height), (0, 0, 0, 0))
+        
+        # Add semi-transparent background at top
+        overlay_height = 300
+        overlay_bg = Image.new('RGBA', (self.width, overlay_height), (0, 0, 0, 180))
+        img.paste(overlay_bg, (0, 0))
+        
+        draw = ImageDraw.Draw(img)
+        font = self._get_font(48)
+        
+        # Word wrap title
+        words, lines, cur = title.split(), [], []
+        for w in words:
+            test = ' '.join(cur + [w])
+            if draw.textbbox((0, 0), test, font=font)[2] <= self.width - 120:
+                cur.append(w)
+            else:
+                if cur: lines.append(' '.join(cur))
+                cur = [w]
+        if cur: lines.append(' '.join(cur))
+        
+        # Draw title text at top
+        y = 60
+        for line in lines:
+            draw.text((60, y), line, font=font, fill='white')
+            y += 60
+        
+        return ImageClip(np.array(img), duration=duration).with_position(('center', 'top'))
 
     def _resize_image_full(self, img: Image.Image) -> Image.Image:
         """Resize image to fill screen (crop if needed)"""
