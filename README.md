@@ -2,10 +2,23 @@
 
 Automated pipeline to convert Vietnamese news articles into TikTok-ready vertical videos (9:16) with AI voice-over, subtitles, and customizable PowerPoint intro templates.
 
+## Table of Contents
+- [Features](#features)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+---
+
 ## Features
 
 - 📰 **Auto-crawl** news from VnExpress, Tien Phong
-- 🤖 **AI Summarization** using qwen3-vl:4b via Ollama (chunked processing for long articles)
+- 🤖 **AI Summarization** using Qwen3:4B via Ollama (chunked processing for long articles)
 - 🎤 **GPU-accelerated TTS** with VieNeu-TTS (multiple Vietnamese voices)
 - 🎬 **Pan effects** with blurred background for images/videos
 - 💬 **Auto-subtitles** with Whisper word-level timing + intelligent text alignment
@@ -14,12 +27,16 @@ Automated pipeline to convert Vietnamese news articles into TikTok-ready vertica
 - 📄 **Summary Export** in text and JSON formats
 - 📱 **TikTok-ready** 1080x1920 MP4 output (~60-90 seconds)
 
+---
+
 ## System Requirements
 
 - Python 3.10+
 - NVIDIA GPU with CUDA support (RTX 5070 Ti or similar recommended)
 - ~10GB disk space for models
 - Ubuntu/Linux (tested on Ubuntu 22.04)
+
+---
 
 ## Installation
 
@@ -50,7 +67,7 @@ sudo apt install espeak-ng
 sudo apt install libreoffice
 ```
 
-### 3. Install Ollama and qwen3-vl:4b (Summarization)
+### 3. Install Ollama and Qwen3:4B (Summarization)
 
 ```bash
 # Install Ollama
@@ -59,14 +76,14 @@ curl -fsSL https://ollama.com/install.sh | sh
 # Start Ollama service
 ollama serve
 
-# Pull qwen3-vl:4b model (~2.5GB)
-ollama pull qwen3-vl:4b
+# Pull Qwen3:4B model (~2.5GB)
+ollama pull qwen3:4b
 ```
 
 Verify installation:
 ```bash
 ollama list
-# Should show: qwen3-vl:4b
+# Should show: qwen3:4b
 ```
 
 ### 4. Install VieNeu-TTS Model (Text-to-Speech)
@@ -112,13 +129,7 @@ print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"
 "
 ```
 
-## Model Summary
-
-| Model | Purpose | Size | Location |
-|-------|---------|------|----------|
-| qwen3-vl:4b | News summarization | ~2.5GB | Ollama (~/.ollama/models) |
-| VieNeu-TTS-0.3B | Vietnamese TTS | ~1.2GB | HuggingFace cache or models/VieNeu-TTS |
-| Whisper base | Subtitle transcription | ~140MB | ~/.cache/whisper |
+---
 
 ## Quick Start
 
@@ -136,7 +147,7 @@ python src/main.py --url "https://vnexpress.net/..." --template 0 --intro-durati
 python src/main.py --url "https://vnexpress.net/..." --voice huong
 ```
 
-## CLI Arguments
+### CLI Arguments
 
 | Argument | Description | Default |
 |----------|-------------|---------|
@@ -148,7 +159,145 @@ python src/main.py --url "https://vnexpress.net/..." --voice huong
 | `--intro-duration` | Intro duration in seconds (separate clip with fade), or "none" for overlay mode (stays entire video) | 3 |
 | `--output` | Output video name (without extension) | auto-generated |
 
-## PowerPoint Intro Templates
+### Available Voices
+
+| Voice | Gender | Region |
+|-------|--------|--------|
+| binh, tuyen | Male | Northern |
+| nguyen, son, vinh | Male | Southern |
+| huong, ly, ngoc | Female | Northern |
+| doan, dung | Female | Southern |
+
+---
+
+## Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    TikTokNewsGenerator                      │
+│                   (Main Orchestrator)                       │
+└────────────┬────────────────────────────────┬───────────────┘
+             │                                │
+             ▼                                ▼
+    ┌────────────────┐              ┌────────────────┐
+    │ NewsProcessor  │              │ MediaGenerator │
+    │   (core.py)    │              │   (media.py)   │
+    └────────────────┘              └────────────────┘
+             │                                │
+             ├─ Crawling                      ├─ TTS (VieNeu)
+             ├─ Summarization (Qwen3:4B)     ├─ Subtitles (Whisper)
+             ├─ Text Correction              ├─ Video Composition
+             └─ Text Refinement              └─ PowerPoint Rendering
+```
+
+### Processing Pipeline
+
+```
+1. Crawl Article → 2. Chunk & Summarize (Qwen3:4B) → 3. Refine Text →
+4. Final Cleanup → 5. Generate TTS (GPU) → 6. Whisper Word-Level Timing →
+7. Intelligent Subtitle Alignment → 8. Render Intro (PowerPoint) → 9. Compose Video
+```
+
+### Subtitle Synchronization
+
+The subtitle system uses a hybrid approach for perfect timing:
+
+1. **Whisper** extracts precise word-level timestamps from audio (uses base model with automatic fallback to smaller models if GPU memory is limited)
+2. **Corrected script** provides accurate Vietnamese text (no transcription errors)
+3. **Intelligent alignment** maps corrected words to Whisper timing using:
+   - Direct word matching (exact matches)
+   - Fuzzy matching (similar words)
+   - Proportional timing fallback (when no match found)
+
+This ensures subtitles are perfectly synchronized with voice-over while displaying correct Vietnamese text.
+
+---
+
+## Project Structure
+
+```
+ai-content-tiktok/
+├── src/                          # Main source code (3 core modules)
+│   ├── __init__.py               # Package marker
+│   ├── core.py                   # NewsProcessor - Crawling, summarization, text processing
+│   ├── media.py                  # MediaGenerator - TTS, subtitles, video composition
+│   └── main.py                   # TikTokNewsGenerator - Main orchestrator
+│
+├── templates/                    # PowerPoint templates
+│   └── intro_template.pptx       # Multi-slide intro templates
+│
+├── assets/                       # Static assets
+│   ├── logo*.png                 # Logo variants
+│   ├── background_music.mp3      # Background music
+│   ├── typing.mp3                # Typing SFX
+│   └── icon/                     # Social media icons
+│
+├── models/                       # ML models (optional local storage)
+│   ├── VieNeu-TTS/               # Vietnamese TTS model
+│   ├── voice_model/              # ONNX voice models
+│   └── ...                       # Other models
+│
+├── output/                       # Generated outputs
+│   ├── videos/                   # Final MP4 videos
+│   ├── audio/                    # Generated audio files
+│   ├── summaries/                # Text and JSON summaries
+│   └── temp/                     # Temporary files (SRT, etc.)
+│
+├── requirements.txt              # Python dependencies
+├── run.sh                        # Quick run script
+└── README.md                     # This file
+```
+
+### Module Responsibilities
+
+#### `src/core.py` - NewsProcessor
+**Purpose:** News article processing and text manipulation
+
+**Key Methods:**
+- `crawl_article(url)` - Web scraping from VnExpress/TienPhong
+- `summarize(article, target_words)` - LLM-based summarization with chunking
+- `correct_text(text)` - Vietnamese spelling/diacritics correction
+- `refine_text(text)` - Grammar and style refinement
+
+#### `src/media.py` - MediaGenerator
+**Purpose:** Media generation (audio, subtitles, video)
+
+**Key Methods:**
+- `generate_audio(text, output_path)` - TTS synthesis
+- `generate_subtitles(audio_path, output_path, script)` - Whisper + alignment
+- `compose_video(...)` - Video composition with effects
+
+#### `src/main.py` - TikTokNewsGenerator
+**Purpose:** Pipeline orchestration and CLI
+
+**Key Methods:**
+- `generate_video(news_url, output_name)` - Complete pipeline
+
+---
+
+## Configuration
+
+### Model Summary
+
+| Model | Purpose | Size | Location |
+|-------|---------|------|----------|
+| Qwen3:4B | News summarization | ~2.5GB | Ollama (~/.ollama/models) |
+| VieNeu-TTS-0.3B | Vietnamese TTS | ~1.2GB | HuggingFace cache or models/VieNeu-TTS |
+| Whisper base | Subtitle transcription | ~140MB | ~/.cache/whisper |
+
+### Video Settings
+
+```python
+resolution = (1080, 1920)  # 9:16 aspect ratio
+fps = 30
+bitrate = '6000k'
+codec = 'libx264'
+audio_codec = 'aac'
+```
+
+### PowerPoint Intro Templates
 
 Design custom intro templates in `templates/intro_template.pptx`:
 
@@ -172,60 +321,7 @@ python src/main.py --url "..." --template 0
 python src/main.py --url "..." --template "psi" --intro-duration none
 ```
 
-## Available Voices
-
-| Voice | Gender | Region |
-|-------|--------|--------|
-| binh, tuyen | Male | Northern |
-| nguyen, son, vinh | Male | Southern |
-| huong, ly, ngoc | Female | Northern |
-| doan, dung | Female | Southern |
-
-## Project Structure
-
-```
-ai-content-tiktok/
-├── src/
-│   ├── crawler/news_crawler.py       # Web scraping
-│   ├── processor/
-│   │   ├── content_summarizer.py     # qwen3-vl:4b chunked summarization
-│   │   ├── news_refiner.py           # Grammar/spelling refinement
-│   │   └── text_corrector.py         # Diacritics correction
-│   ├── media/
-│   │   ├── tts_generator.py          # VieNeu-TTS (GPU)
-│   │   ├── video_composer.py         # Video composition
-│   │   ├── intro_renderer.py         # PowerPoint template rendering
-│   │   └── subtitle_generator.py     # Whisper + intelligent alignment
-│   └── main.py                       # Main orchestrator
-├── templates/intro_template.pptx     # PowerPoint intro templates
-├── assets/                           # Logo, icons, music, SFX
-├── models/                           # Local model files (optional)
-│   └── VieNeu-TTS/                   # Local TTS model
-└── output/                           # Generated videos, audio, summaries
-```
-
-## Processing Pipeline
-
-```
-1. Crawl Article → 2. Chunk & Summarize (Qwen3:4B) → 3. Refine Text →
-4. Final Cleanup → 5. Generate TTS (GPU) → 6. Whisper Word-Level Timing →
-7. Intelligent Subtitle Alignment → 8. Render Intro (PowerPoint) → 9. Compose Video
-```
-
-### Subtitle Synchronization
-
-The subtitle system uses a hybrid approach for perfect timing:
-
-1. **Whisper** extracts precise word-level timestamps from audio (uses base model with automatic fallback to smaller models if GPU memory is limited)
-2. **Corrected script** provides accurate Vietnamese text (no transcription errors)
-3. **Intelligent alignment** maps corrected words to Whisper timing using:
-   - Direct word matching (exact matches)
-   - Fuzzy matching (similar words)
-   - Proportional timing fallback (when no match found)
-
-This ensures subtitles are perfectly synchronized with voice-over while displaying correct Vietnamese text.
-
-## Text Processing
+### Text Processing
 
 The summarizer automatically handles:
 - **Numbers**: `1.890` → `1890` (Vietnamese thousand separator)
@@ -233,14 +329,7 @@ The summarizer automatically handles:
 - **Stuck words**: `chứng khoánkhởi` → `chứng khoán khởi`
 - **Incomplete sentences**: Ensures proper ending punctuation
 
-## Output Specifications
-
-- **Resolution**: 1080x1920 (9:16 vertical)
-- **Format**: MP4 (H.264 codec)
-- **Frame Rate**: 30 FPS
-- **Duration**: ~60-90 seconds
-- **Audio**: AAC codec
-- **Effects**: Pan left-to-right with blurred background
+---
 
 ## Troubleshooting
 
@@ -291,13 +380,43 @@ python -c "import whisper; whisper.load_model('base', device='cpu')"
 - Each chunk is summarized separately then combined
 - Target is ~350 words (~60-90 seconds of speech)
 
+---
+
+## Performance
+
+### Processing Time
+- Crawling: ~2-5 seconds
+- Summarization: ~10-30 seconds (depends on article length)
+- TTS: ~5-10 seconds
+- Subtitles: ~10-20 seconds
+- Video composition: ~30-60 seconds
+- **Total:** ~1-2 minutes per video
+
+### GPU Usage
+- **VieNeu-TTS:** Primary GPU user (CUDA required for best quality)
+- **Whisper:** GPU-accelerated (falls back to CPU if OOM)
+- **Text Correction:** GPU-accelerated (ProtonX model)
+
+---
+
+## Output Specifications
+
+- **Resolution**: 1080x1920 (9:16 vertical)
+- **Format**: MP4 (H.264 codec)
+- **Frame Rate**: 30 FPS
+- **Duration**: ~60-90 seconds
+- **Audio**: AAC codec
+- **Effects**: Pan left-to-right with blurred background
+
+---
+
 ## License
 
 Open source - Free for commercial use
 
 ## Credits
 
-- **Summarization**: qwen3-vl:4b via Ollama
+- **Summarization**: Qwen3:4B via Ollama
 - **TTS**: VieNeu-TTS (GPU-accelerated Vietnamese)
 - **Transcription**: OpenAI Whisper (adaptive model selection)
 - **Video**: MoviePy
